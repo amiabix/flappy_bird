@@ -2,7 +2,7 @@
 
 A Flappy Bird game that generates verifiable zero-knowledge proofs of player scores using the ZisK framework.
 
-## 🎮 Features
+## Features
 
 - **Classic Flappy Bird Gameplay** - React-based game with smooth controls
 - **Real ZisK Proof Generation** - Cryptographic proofs of game scores
@@ -10,7 +10,7 @@ A Flappy Bird game that generates verifiable zero-knowledge proofs of player sco
 - **Score Leaderboard** - Track high scores with verifiable proofs
 - **Full Stack Implementation** - Rust backend, Python API, React frontend
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -19,7 +19,7 @@ A Flappy Bird game that generates verifiable zero-knowledge proofs of player sco
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -55,7 +55,7 @@ A Flappy Bird game that generates verifiable zero-knowledge proofs of player sco
 
 5. **Play the game!** Open http://localhost:3000 in your browser
 
-## 🔧 How It Works
+## How It Works
 
 ### 1. Game Play
 - Player plays Flappy Bird normally
@@ -74,7 +74,7 @@ A Flappy Bird game that generates verifiable zero-knowledge proofs of player sco
 - Real ZisK output displayed in frontend
 - Score can be verified independently using `ziskemu`
 
-## 🛠️ Development
+## Development
 
 ### Testing ZisK Proofs
 
@@ -100,7 +100,7 @@ curl -X POST http://localhost:8000/api/submit-score \
 curl http://localhost:8000/api/leaderboard
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 flappy_bird/
@@ -114,7 +114,7 @@ flappy_bird/
 └── README.md                # This file
 ```
 
-## 🔐 ZisK Integration
+## ZisK Integration
 
 This project demonstrates:
 - **Real ZisK builds** using `cargo-zisk build --release`
@@ -122,7 +122,7 @@ This project demonstrates:
 - **Cryptographic proof generation** of game scores
 - **Independent verification** using `ziskemu`
 
-## 🎯 Future Enhancements
+## Future Enhancements
 
 - [ ] Multiplayer support with shared proofs
 - [ ] Blockchain integration for score verification
@@ -130,7 +130,7 @@ This project demonstrates:
 - [ ] Mobile app version
 - [ ] Tournament mode with proof verification
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -138,11 +138,11 @@ This project demonstrates:
 4. Test with `cargo-zisk build --release`
 5. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - ZisK team for the zero-knowledge proof framework
 - React team for the frontend framework
@@ -150,4 +150,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Play Flappy Bird, Generate ZisK Proofs, Verify Everything! 🐦✨**
+**Play Flappy Bird, Generate ZisK Proofs, Verify Everything!**
