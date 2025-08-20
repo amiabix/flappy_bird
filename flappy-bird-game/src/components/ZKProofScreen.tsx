@@ -17,6 +17,10 @@ export const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) =
     // Generate REAL ZisK proof using the API
     const generateProof = async () => {
       try {
+        // Debug: Log the score being used
+        console.log('🔍 Debug: ZKProofScreen - Score being used for API call:', score);
+        console.log('🔍 Debug: ZKProofScreen - Score type:', typeof score);
+        
         // Update progress to show we're starting
         setProgress(10);
         
@@ -40,7 +44,9 @@ export const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) =
         setProgress(50);
         
         const result = await response.json();
-        console.log('ZisK Proof API Response:', result);
+        console.log('Debug: ZKProofScreen - API Response received:', result);
+        console.log('Debug: ZKProofScreen - Score in API response:', result.score_data?.score);
+        console.log('Debug: ZKProofScreen - Script output length:', result.script_details?.length || 0);
         
         setProgress(100);
         
@@ -189,7 +195,7 @@ export const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) =
             <ArrowLeft size={24} />
           </button>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            ZK Proof Generation
+            Proof Generation with ZisK
           </h1>
         </div>
 
@@ -243,10 +249,10 @@ export const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) =
             <div className="bg-gradient-to-r from-green-100 to-blue-100 rounded-2xl p-6 text-center animate-slideUp">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Shield className="text-green-600" size={32} />
-                <h2 className="text-2xl font-bold text-gray-800">Real ZisK Proof Generated!</h2>
+                <h2 className="text-2xl font-bold text-gray-800">ZisK Proof Generation Process</h2>
               </div>
               <p className="text-gray-600">
-                Your score of <span className="font-bold text-purple-600">{zkProof.score} points</span> has been cryptographically proven using <span className="font-bold text-blue-600">real ZisK computation</span>
+                Your score of <span className="font-bold text-purple-600">{zkProof.score} points</span> has been proven using ZisK, build with ZisK 🦫
               </p>
             </div>
 

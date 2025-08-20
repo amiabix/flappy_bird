@@ -197,11 +197,13 @@ def generate_zisk_proof(score):
             }
         
         print(f"🚀 Starting ZisK Proof Generation for score: {score}")
+        print(f"🔍 Debug: API - generate_zisk_proof called with score: {score}")
         
         # Step 1: Run the generate_zk_proof.sh script
         print(f"🔧 Step 1: Running generate_zk_proof.sh script with score {score}")
         
         print(f"🔍 Debug: About to call script with command: /Users/abix/Desktop/ZisK_project/flappy_Bird/generate_zk_proof.sh {score}")
+        print(f"🔍 Debug: Script command score parameter: {score}")
         
         script_result = subprocess.run(
             ["/Users/abix/Desktop/ZisK_project/flappy_Bird/generate_zk_proof.sh", str(score)],
@@ -215,12 +217,12 @@ def generate_zisk_proof(score):
         print(f"🔍 Debug: Script stdout length: {len(script_result.stdout)}")
         print(f"🔍 Debug: Script stderr length: {len(script_result.stderr)}")
         
-        if script_result.returncode != 0:
-            print(f"❌ Script execution failed: {script_result.stderr}")
-            raise Exception(f"Script execution failed: {script_result.stderr}")
+        print(f"🔍 Script stdout: {script_result.stdout}")
+        print(f"🔍 Script stderr: {script_result.stderr}")
         
-        print(f"✅ Script execution completed successfully!")
-        print(f"   Script output: {script_result.stdout}")
+        if script_result.returncode != 0:
+            print(f"⚠️  Script execution failed with exit code {script_result.returncode}")
+            print(f"   But we'll still capture the output for debugging")
         
         # Step 2: Run the ZisK program using ziskemu
         print(f"⚡ Step 2: Executing ZisK program with ziskemu")
@@ -232,16 +234,18 @@ def generate_zisk_proof(score):
             timeout=30
         )
         
-        print(f"✅ ZisK execution completed!")
-        print(f"   ZisK stdout: {zisk_result.stdout}")
-        print(f"   ZisK stderr: {zisk_result.stderr}")
+        print(f"🔍 ZisK stdout: {zisk_result.stdout}")
+        print(f"🔍 ZisK stderr: {zisk_result.stderr}")
         
+        # Return output regardless of success/failure for debugging
         return {
-            "success": True,
+            "success": script_result.returncode == 0 and zisk_result.returncode == 0,
             "script_output": script_result.stdout,
             "script_stderr": script_result.stderr,
             "zisk_output": zisk_result.stdout,
-            "zisk_stderr": zisk_result.stderr
+            "zisk_stderr": zisk_result.stderr,
+            "script_exit_code": script_result.returncode,
+            "zisk_exit_code": zisk_result.returncode
         }
         
     except Exception as e:
@@ -275,6 +279,7 @@ def submit_score():
             }), 400
         
         print(f"🎮 Score submission received: Player {player_id}, Score {score}, Difficulty {difficulty}")
+        print(f"🔍 Debug: API - Score type: {type(score)}, Score value: {score}")
         
         # Generate ZisK proof using build.rs
         proof_result = generate_zisk_proof(score)

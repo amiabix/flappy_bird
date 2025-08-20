@@ -41,9 +41,9 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
           <>
             <div className="text-6xl mb-4">🐦</div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
-              Flappy ZK
+              Flappy Bird with ZisK
             </h1>
-            <p className="text-gray-600 mb-8">Tap to fly and prove your score!</p>
+            <p className="text-gray-600 mb-8">Play • Score • Prove</p>
             <button
               onClick={onStart}
               className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto group"
@@ -92,7 +92,7 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
                 className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto group"
               >
                 <Zap size={20} className="group-hover:scale-110 transition-transform" />
-                Generate ZK Proof
+                Generate ZisK Proof
               </button>
               )}
               <button
@@ -103,8 +103,6 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
                 Play Again
               </button>
             </div>
-
-
           </>
         )}
       </div>

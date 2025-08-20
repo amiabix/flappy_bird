@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 default-run = "flappy_bird_zisk"
 
+[build]
+build = "build.rs"
+
 [[bin]]
 name = "flappy_bird_zisk"
 path = "src/main.rs"
