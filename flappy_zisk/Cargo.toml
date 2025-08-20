@@ -8,9 +8,9 @@ default-run = "flappy_bird_zisk"
 name = "flappy_bird_zisk"
 path = "src/main.rs"
 
-[[bin]]
-name = "input_generator"
-path = "build.rs"
+
+
+
 
 [dependencies]
 byteorder = "1.5.0"
@@ -18,9 +18,7 @@ sha2 = "0.10.8"
 ziskos = { git = "https://github.com/0xPolygonHermez/zisk.git" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# Removed chrono and uuid - they cause getrandom issues with ZisK
 hex = "0.4"
-lazy_static = "1.4"
 
 [target.'cfg(target_os = "none")'.dependencies]
 getrandom = { version = "0.2", features = ["custom"] }
