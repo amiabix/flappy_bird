@@ -34,7 +34,26 @@ fn main() -> io::Result<()> {
         },
         Err(e) => {
             println!("GAME_SCORE not found in environment: {:?}, creating placeholder input.bin", e);
-            0
+            // Try to read from a file as fallback
+            match std::fs::read_to_string("GAME_SCORE.txt") {
+                Ok(content) => {
+                    println!("Reading GAME_SCORE from file: '{}'", content.trim());
+                    match content.trim().parse::<u64>() {
+                        Ok(score) => {
+                            println!("Parsed score from file successfully: {}", score);
+                            score
+                        },
+                        Err(e) => {
+                            println!("Invalid GAME_SCORE format in file '{}': {:?}, using placeholder", content.trim(), e);
+                            0
+                        }
+                    }
+                },
+                Err(_) => {
+                    println!("No GAME_SCORE file found, using placeholder");
+                    0
+                }
+            }
         }
     };
     

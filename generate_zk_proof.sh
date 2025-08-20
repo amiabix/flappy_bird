@@ -68,8 +68,11 @@ export GAME_SCORE=$GAME_SCORE
 echo "  Debug: GAME_SCORE environment variable set to: $GAME_SCORE"
 echo "  Debug: Running 'env | grep GAME_SCORE' to verify:"
 env | grep GAME_SCORE || echo "  Debug: No GAME_SCORE found in environment"
+echo "  Creating fallback GAME_SCORE.txt file..."
+echo "$GAME_SCORE" > GAME_SCORE.txt
+echo "  Debug: GAME_SCORE.txt created with content: $(cat GAME_SCORE.txt)"
 echo "  Executing: cargo build to trigger build.rs..."
-cargo build
+GAME_SCORE=$GAME_SCORE cargo build
 echo ""
 
     if [ $? -eq 0 ]; then
