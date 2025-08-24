@@ -180,11 +180,8 @@ tail -f api_server.log
 curl -s http://localhost:8000/api/system-status | jq
 ```
 
-<<<<<<< HEAD
-=======
 ## Configuration
 
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 ### Environment Variables
 ```bash
 # ZisK configuration
@@ -196,8 +193,6 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 ```
 
-<<<<<<< HEAD
-=======
 ### Customization Options
 - **Timeouts**: Adjust timeout values in API server
 - **Worker Count**: Change worker thread count
@@ -205,7 +200,6 @@ export FLASK_DEBUG=1
 
 ## API Reference
 
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 ### Submit Score
 ```bash
 POST /api/submit-score
