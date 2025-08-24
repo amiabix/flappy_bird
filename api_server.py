@@ -82,7 +82,7 @@ def cleanup_old_dedup_entries():
         logger.info(f"🧹 Cleaned up {len(expired_keys)} expired deduplication entries")
 
 class ProofJob:
-    def __init__(self, job_id, player_id, score, difficulty):
+    def __init__(self, job_id, player_id, score, difficulty, request_id=None):
         self.job_id = job_id
         self.player_id = player_id
         self.score = score
@@ -96,6 +96,7 @@ class ProofJob:
         self.proof_file_path = None
         self.process_pid = None
         self.game_id = None  # Will be set after creation
+        self.request_id = request_id  # Client-provided unique request ID for deduplication
         
     def to_dict(self):
         return {
@@ -606,10 +607,13 @@ def submit_score():
         player_id = data['player_id']
         score = data['score']
         difficulty = data.get('difficulty', 1)
+        request_id = data.get('request_id')  # Optional client-provided request ID
         
-        logger.info(f"REAL score submission: Player {player_id}, Score {score}, Difficulty {difficulty}")
+        logger.info(f"REAL score submission: Player {player_id}, Score {score}, Difficulty {difficulty}, Request ID: {request_id}")
         
-        # 🔒 BULLETPROOF DEDUPLICATION CHECK
+        # 🔒 BULLETPROOF DEDUPLICATION CHECK - MULTIPLE LEVELS
+        
+        # Level 1: Check by score+player+difficulty (time window)
         dedup_key = (player_id, score, difficulty)
         current_time = datetime.now()
         
@@ -630,6 +634,23 @@ def submit_score():
                         'time_remaining': wait_time
                     }), 429  # Too Many Requests
         
+        # Level 2: Check by request_id if provided (most robust)
+        if request_id:
+            with proof_jobs_lock:
+                existing_job = next((job for job in proof_jobs.values() 
+                                   if hasattr(job, 'request_id') and job.request_id == request_id), None)
+                
+                if existing_job:
+                    logger.warning(f"🚫 REQUEST ID DUPLICATE: Request {request_id} already processed as job {existing_job.job_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Request already processed',
+                        'job_id': existing_job.job_id,
+                        'status': existing_job.status.value,
+                        'duplicate_detected': True,
+                        'existing_job': existing_job.to_dict()
+                    })
+        
         # Validate score - must be a positive number
         if not isinstance(score, (int, float)) or score < 0:
             return jsonify({
@@ -639,7 +660,7 @@ def submit_score():
         
         # Create REAL proof job
         job_id = str(uuid.uuid4())
-        job = ProofJob(job_id, player_id, score, difficulty)
+        job = ProofJob(job_id, player_id, score, difficulty, request_id)
         
         with proof_jobs_lock:
             proof_jobs[job_id] = job
@@ -651,7 +672,8 @@ def submit_score():
         with dedup_lock:
             recent_submissions[dedup_key] = {
                 'timestamp': current_time,
-                'job_id': job_id
+                'job_id': job_id,
+                'request_id': request_id
             }
         
         # Add REAL score to leaderboard immediately with pending proof status
@@ -668,20 +690,21 @@ def submit_score():
         
         with leaderboard_lock:
             leaderboard[difficulty].append(score_entry)
-        leaderboard[difficulty].sort(key=lambda x: x['score'], reverse=True)
+            leaderboard[difficulty].sort(key=lambda x: x['score'], reverse=True)
             # Keep top 1000 scores per difficulty
             leaderboard[difficulty] = leaderboard[difficulty][:1000]
         
         # Queue REAL proof job
         proof_queue.put(job)
         
-        logger.info(f"✅ REAL proof job {job_id} queued successfully with game_id: {job.game_id}")
+        logger.info(f"✅ REAL proof job {job_id} queued successfully with game_id: {job.game_id}, request_id: {request_id}")
         
         return jsonify({
             'success': True,
             'message': 'Real score submitted successfully, ZisK proof generation queued',
             'job_id': job_id,
             'game_id': job.game_id,
+            'request_id': request_id,
             'score_data': score_entry,
             'proof_status': ProofStatus.PENDING.value,
             'estimated_time': '20-45 minutes'
@@ -731,8 +754,8 @@ def get_proof_jobs():
             if status_filter:
                 jobs = [j for j in jobs if j.status.value == status_filter]
                 if not jobs:
-        return jsonify({
-            'success': False,
+                    return jsonify({
+                        'success': False,
                         'error': f'No proof jobs found with status: {status_filter}'
                     }), 404
             
@@ -786,8 +809,8 @@ def get_all_leaderboards():
     try:
         with leaderboard_lock:
             if not leaderboard:
-        return jsonify({
-            'success': False,
+                return jsonify({
+                    'success': False,
                     'error': 'No real scores found - no scores have been submitted yet'
                 }), 404
             
@@ -1037,37 +1060,41 @@ def get_dedup_status():
 
 @app.route('/api/test-dedup', methods=['POST'])
 def test_dedup():
-    """Test endpoint to verify deduplication is working"""
+    """Test endpoint to verify deduplication is working correctly"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         test_player = data.get('player_id', 'test_player')
         test_score = data.get('score', 999)
         test_difficulty = data.get('difficulty', 1)
+        test_request_id = data.get('request_id', f'test_{int(time.time())}')
         
-        # Try to submit the same score twice
-        first_result = submit_score_internal(test_player, test_score, test_difficulty)
+        # Check if this submission would be blocked
+        dedup_key = (test_player, test_score, test_difficulty)
+        current_time = datetime.now()
         
-        if not first_result['success']:
-            return jsonify({
-                'success': False,
-                'error': 'First submission failed',
-                'first_result': first_result
-            })
-        
-        # Wait a moment
-        time.sleep(1)
-        
-        # Try to submit the same score again (should be blocked)
-        second_result = submit_score_internal(test_player, test_score, test_difficulty)
-        
-        return jsonify({
-            'success': True,
-            'dedup_working': not second_result['success'],
-            'first_submission': first_result,
-            'second_submission': second_result,
-            'dedup_blocked': second_result.get('duplicate_blocked', False)
-        })
-        
+        with dedup_lock:
+            if dedup_key in recent_submissions:
+                last_submission = recent_submissions[dedup_key]
+                time_diff = (current_time - last_submission['timestamp']).total_seconds()
+                
+                return jsonify({
+                    'success': True,
+                    'would_be_blocked': time_diff < DEDUP_WINDOW_SECONDS,
+                    'time_since_last_submission': time_diff,
+                    'existing_job_id': last_submission['job_id'],
+                    'time_remaining': max(0, DEDUP_WINDOW_SECONDS - time_diff),
+                    'dedup_key': f"{test_player}_{test_score}_{test_difficulty}",
+                    'request_id_check': 'Not implemented yet'
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'would_be_blocked': False,
+                    'message': 'No recent submission found - would be accepted',
+                    'dedup_key': f"{test_player}_{test_score}_{test_difficulty}",
+                    'request_id': test_request_id
+                })
+                
     except Exception as e:
         logger.error(f"Error testing dedup: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
