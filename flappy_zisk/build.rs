@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
             // Fallback timestamp if system time is wrong
             game_score.wrapping_mul(0x517cc1b727220a95)
         } else {
-            // Use timestamp-based ID
+            // Using timestamp-based ID
             (timestamp << 20) | (game_score & 0xFFFFF)
         }
     };

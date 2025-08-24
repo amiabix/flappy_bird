@@ -8,7 +8,7 @@ fn main() {
     // Read input safely
     let input: Vec<u8> = read_input();
     
-    // Validate input length first
+    //Validate input length first
     if input.len() != 16 {
         panic!("Invalid input: expected 16 bytes (score + game_id), got {}", input.len());
     }
