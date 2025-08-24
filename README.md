@@ -161,7 +161,6 @@ curl -s http://localhost:8000/api/system-status | jq
 ## Configuration
 
 ### Environment Variables
->>>>>>> c05253bfc3d0499922a47cf1df94705ac35c4194
 ```bash
 # ZisK configuration
 export ZISK_BASE_PORT=23200
@@ -172,14 +171,11 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 ```
 
-<<<<<<< HEAD
-=======
 ### Customization Options
 - **Timeouts**: Adjust timeout values in API server
 - **Worker Count**: Change worker thread count
 - **Deduplication Window**: Modify `DEDUP_WINDOW_SECONDS`
 
->>>>>>> c05253bfc3d0499922a47cf1df94705ac35c4194
 ## API Reference
 
 ### Submit Score
@@ -225,13 +221,5 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
-<<<<<<< HEAD
-
-=======
->>>>>>> c05253bfc3d0499922a47cf1df94705ac35c4194
----
 **Happy Gaming and Proof Generation with ZisK!**
-<<<<<<< HEAD
 
-=======
->>>>>>> c05253bfc3d0499922a47cf1df94705ac35c4194
