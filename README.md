@@ -2,7 +2,6 @@
 
 A proof generation system for Flappy Bird game scores using ZisK. This project generates proofs for game score's that can be verified without revealing the original game data.
 
-
 ## What This System Does
 
 This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. 
@@ -178,6 +177,11 @@ tail -f api_server.log
 curl -s http://localhost:8000/api/system-status | jq
 ```
 
+<<<<<<< HEAD
+=======
+## Configuration
+
+>>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 ### Environment Variables
 ```bash
 # ZisK configuration
@@ -189,6 +193,16 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 ```
 
+<<<<<<< HEAD
+=======
+### Customization Options
+- **Timeouts**: Adjust timeout values in API server
+- **Worker Count**: Change worker thread count
+- **Deduplication Window**: Modify `DEDUP_WINDOW_SECONDS`
+
+## API Reference
+
+>>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 ### Submit Score
 ```bash
 POST /api/submit-score
@@ -232,7 +246,12 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
+<<<<<<< HEAD
 ---
 
 **Happy Gaming and Proof Generation with ZisK!**
+=======
+
+**Happy Gaming and Proof Generation!**
+>>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 
