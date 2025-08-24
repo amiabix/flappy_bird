@@ -1,10 +1,11 @@
-# Flappy Bird ZisK Proof Generation System
+# Flappy Bird ZisK 
 
 A proof generation system for Flappy Bird game scores using ZisK. This project generates proofs for game score's that can be verified without revealing the original game data.
 
+
 ## What This System Does
 
-This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. The system uses custom ports (23200-23202) to avoid conflicts with other users, runs only one proof generation at a time to prevent crashes, and provides a clean React frontend with real-time updates on proof generation progress. It automatically handles duplicate submissions, manages multiple requests efficiently, and recovers from errors automatically.
+This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. 
 
 ## Architecture
 
@@ -107,32 +108,13 @@ Access the game at: http://localhost:5173
 1. **Input Generation**: Create binary input file with score data
 2. **ZisK Compilation**: Compile Flappy Bird game with ZisK
 3. **Execution**: Run game in ZisK environment
-4. **Proof Creation**: Generate mathematical proof
+4. **Proof Creation**: Generate proof
 5. **Verification**: Verify proof integrity
 
 ### 3. System Flow
 ```
 Game Score → API Validation → Job Creation → ZisK Processing → Proof Generation → Status Updates
 ```
-
-## Security Features
-
-### Global Execution Lock
-- **Purpose**: Prevents multiple ZisK processes from running simultaneously
-- **Implementation**: System blocks new submissions while processing
-- **Benefits**: Resource efficiency, prevents conflicts, ensures sequential processing
-
-### Duplicate Prevention
-- **Time Window**: 30-second deduplication window
-- **Scope**: Player ID + Score + Difficulty combination
-- **Result**: Prevents spam and resource waste
-
-### Input Validation
-- **Score Range**: 1-1000 points
-- **Data Integrity**: Tamper-proof game ID generation
-- **Memory Safety**: Bounds checking and validation
-
-## Monitoring & Status
 
 ### System Status Endpoints
 ```bash
@@ -170,7 +152,6 @@ curl http://localhost:8000/api/health
 netstat -tuln | grep -E "23118|23119|23120"
 
 # Use custom ports in generate_zk_proof_fixed.sh
-# Change base_port=23200 to avoid conflicts
 ```
 
 #### System Busy Error
@@ -197,22 +178,6 @@ tail -f api_server.log
 curl -s http://localhost:8000/api/system-status | jq
 ```
 
-## Performance
-
-### Proof Generation Times
-- **Small Scores (1-10)**: 2-5 minutes
-- **Medium Scores (11-50)**: 5-10 minutes
-- **Large Scores (51-100)**: 10-15 minutes
-- **Maximum Score (1000)**: 15-20 minutes
-
-### System Capacity
-- **Concurrent Jobs**: 1 (sequential processing)
-- **Worker Threads**: 2 (for job management)
-- **Memory Usage**: ~500MB per ZisK process
-- **Storage**: ~300KB per proof file
-
-## Configuration
-
 ### Environment Variables
 ```bash
 # ZisK configuration
@@ -223,14 +188,6 @@ export ZISK_TIMEOUT=1800
 export FLASK_ENV=development
 export FLASK_DEBUG=1
 ```
-
-### Customization Options
-- **Port Ranges**: Modify `base_port` in scripts
-- **Timeouts**: Adjust timeout values in API server
-- **Worker Count**: Change worker thread count
-- **Deduplication Window**: Modify `DEDUP_WINDOW_SECONDS`
-
-## API Reference
 
 ### Submit Score
 ```bash
@@ -275,25 +232,7 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **ZisK Team**: For the Zero-Knowledge System Kit
-- **Flappy Bird**: Original game concept
-- **React Community**: Frontend framework
-- **Flask Community**: Backend framework
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
-- **Documentation**: [Wiki](https://github.com/your-repo/wiki)
-
 ---
 
-**Happy Gaming and Proof Generation!**
+**Happy Gaming and Proof Generation with ZisK!**
 
