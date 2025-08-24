@@ -4,25 +4,7 @@ A proof generation system for Flappy Bird game scores using ZisK. This project g
 
 ## What This System Does
 
-**Play Flappy Bird, Submit Scores, Get Proofs**
-- Play the game normally and submit your score when you're done
-- The system generates a mathematical proof that your score is real
-- Anyone can verify your proof without seeing your actual gameplay
-- Uses custom ports (23200-23202) so it doesn't conflict with other users
-
-**Smart System Management**
-- Only one proof generation runs at a time (prevents crashes)
-- Stops duplicate submissions within 30 seconds
-- Shows live updates on proof generation progress
-- Automatically handles multiple requests efficiently
-- Recovers automatically if something goes wrong
-
-**User Interface**
-- Clean React frontend with TypeScript
-- Real-time status updates as proofs generate
-- Shows when the system is busy or ready for new scores
-- Clear error messages and system status
-- Download your generated proofs when ready
+This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. The system uses custom ports (23200-23202) to avoid conflicts with other users, runs only one proof generation at a time to prevent crashes, and provides a clean React frontend with real-time updates on proof generation progress. It automatically handles duplicate submissions, manages multiple requests efficiently, and recovers from errors automatically.
 
 ## Architecture
 
