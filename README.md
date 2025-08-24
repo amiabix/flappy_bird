@@ -200,20 +200,6 @@ tail -f api_server.log
 curl -s http://localhost:8000/api/system-status | jq
 ```
 
-## Performance
-
-### Proof Generation Times
-- **Small Scores (1-10)**: 2-5 minutes
-- **Medium Scores (11-50)**: 5-10 minutes
-- **Large Scores (51-100)**: 10-15 minutes
-- **Maximum Score (1000)**: 15-20 minutes
-
-### System Capacity
-- **Concurrent Jobs**: 1 (sequential processing)
-- **Worker Threads**: 2 (for job management)
-- **Memory Usage**: ~500MB per ZisK process
-- **Storage**: ~300KB per proof file
-
 ## Configuration
 
 ### Environment Variables
@@ -277,25 +263,6 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **ZisK Team**: For the Zero-Knowledge System Kit
-- **Flappy Bird**: Original game concept
-- **React Community**: Frontend framework
-- **Flask Community**: Backend framework
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/discussions)
-- **Documentation**: [Wiki](https://github.com/your-repo/wiki)
-
----
 
 **Happy Gaming and Proof Generation!**
 
