@@ -31,7 +31,10 @@ export interface ZKProof {
     ziskOutput?: string;
     buildOutput?: string;
     cargoOutput?: string;
+    romSetupOutput?: string;
     step3Output?: string;
+    step4Output?: string;
+    step5Output?: string;
     finalStatus?: string;
     error?: string;
   };

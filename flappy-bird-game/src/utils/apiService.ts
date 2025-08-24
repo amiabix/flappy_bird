@@ -23,7 +23,7 @@ export interface LeaderboardResponse {
 }
 
 export class ApiService {
-  static async submitScore(scoreData: ScoreSubmission): Promise<boolean> {
+  static async submitScore(scoreData: ScoreSubmission): Promise<any> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/submit-score`, {
         method: 'POST',
@@ -36,14 +36,15 @@ export class ApiService {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Score submitted successfully:', result);
-        return true;
+        return result;
       } else {
+        const errorData = await response.json();
         console.error('❌ Failed to submit score:', response.statusText);
-        return false;
+        throw new Error(errorData.error || response.statusText);
       }
     } catch (error) {
       console.error('❌ Error submitting score:', error);
-      return false;
+      throw error;
     }
   }
 

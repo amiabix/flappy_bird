@@ -1,392 +1,543 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import subprocess
-import json
 import os
 import threading
 import time
 from datetime import datetime
-import requests
+import uuid
+import queue
+import logging
+from collections import defaultdict
+from enum import Enum
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-# In-memory storage
-leaderboard = {}
-player_stats = {}
-background_scores = []
-is_background_running = False
-background_thread = None
+class ProofStatus(Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'service': 'Flappy Bird ZisK API with Background Score Fetching',
-        'background_running': is_background_running
-    })
+# Global variables - ONLY for real submitted data
+leaderboard = defaultdict(list)  # Only real submitted scores
+proof_jobs = {}  # {job_id: ProofJob} - Only real proof jobs
+proof_queue = queue.Queue()  # Only real proof generation requests
+active_proof_workers = {}  # {thread_id: ProofJob}
 
-def background_score_fetcher():
-    """Background service that continuously fetches and processes scores"""
-    global is_background_running, background_scores
+# Thread synchronization
+leaderboard_lock = threading.RLock()
+proof_jobs_lock = threading.RLock()
+
+class ProofJob:
+    def __init__(self, job_id, player_id, score, difficulty):
+        self.job_id = job_id
+        self.player_id = player_id
+        self.score = score
+        self.difficulty = difficulty
+        self.status = ProofStatus.PENDING
+        self.created_at = datetime.now()
+        self.started_at = None
+        self.completed_at = None
+        self.proof_output = None
+        self.error_message = None
+        self.proof_file_path = None
+        self.process_pid = None
+        
+    def to_dict(self):
+        return {
+            'job_id': self.job_id,
+            'player_id': self.player_id,
+            'score': self.score,
+            'difficulty': self.difficulty,
+            'status': self.status.value,
+            'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'duration_seconds': (
+                (self.completed_at - self.started_at).total_seconds() 
+                if self.completed_at and self.started_at else None
+            ),
+            'proof_file_path': self.proof_file_path,
+            'error_message': self.error_message
+        }
+
+def proof_worker():
+    """Worker thread that processes real proof generation jobs"""
+    thread_id = threading.get_ident()
+    logger.info(f"Proof worker {thread_id} started")
     
-    print("🔄 Background score fetcher started...")
-    
-    while is_background_running:
+    while True:
         try:
-            # Simulate fetching scores from various sources
-            # In a real implementation, this could be:
-            # - Web scraping game sites
-            # - API calls to gaming platforms
-            # - Database queries
-            # - WebSocket connections
+            # Get next REAL job from queue (blocks until available)
+            job = proof_queue.get(timeout=30)
+            if job is None:  # Poison pill to stop worker
+                break
+                
+            logger.info(f"Worker {thread_id} processing REAL proof job {job.job_id}")
             
-            # Generate a mock score every 30 seconds for demonstration
-            mock_score = {
-                'player_id': f'auto_player_{int(time.time())}',
-                'score': int(time.time()) % 100 + 1,  # Score 1-100
-                'difficulty': 1,
-                'timestamp': datetime.now().isoformat(),
-                'source': 'background_fetcher'
-            }
+            with proof_jobs_lock:
+                active_proof_workers[thread_id] = job
+                job.status = ProofStatus.IN_PROGRESS
+                job.started_at = datetime.now()
+                proof_jobs[job.job_id] = job
             
-            background_scores.append(mock_score)
+            # Generate the REAL ZisK proof
+            result = generate_real_zisk_proof(job)
             
-            # Keep only last 100 background scores
-            if len(background_scores) > 100:
-                background_scores = background_scores[-100:]
+            with proof_jobs_lock:
+                if result['success']:
+                    job.status = ProofStatus.COMPLETED
+                    job.proof_output = result.get('output')
+                    job.proof_file_path = result.get('proof_file_path')
+                else:
+                    job.status = ProofStatus.FAILED
+                    job.error_message = result.get('error')
+                
+                job.completed_at = datetime.now()
+                proof_jobs[job.job_id] = job
+                
+                # Remove from active workers
+                if thread_id in active_proof_workers:
+                    del active_proof_workers[thread_id]
             
-            print(f"📊 Background fetched score: {mock_score['player_id']} - {mock_score['score']}")
+            # Update leaderboard with REAL proof result
+            update_leaderboard_with_real_proof(job)
             
-            # Process the score (generate ZisK proof if needed)
-            try:
-                process_background_score(mock_score)
-            except Exception as e:
-                print(f"❌ Error processing background score: {e}")
+            logger.info(f"Worker {thread_id} completed REAL proof job {job.job_id} with status {job.status.value}")
             
-            # Wait 30 seconds before next fetch
-            time.sleep(30)
-            
+        except queue.Empty:
+            continue  # No jobs available, keep waiting
         except Exception as e:
-            print(f"❌ Background fetcher error: {e}")
-            time.sleep(60)  # Wait longer on error
+            logger.error(f"Proof worker {thread_id} error: {e}")
+            if 'job' in locals():
+                with proof_jobs_lock:
+                    job.status = ProofStatus.FAILED
+                    job.error_message = str(e)
+                    job.completed_at = datetime.now()
+                    if thread_id in active_proof_workers:
+                        del active_proof_workers[thread_id]
+        finally:
+            if 'job' in locals():
+                proof_queue.task_done()
     
-    print("🛑 Background score fetcher stopped")
+    logger.info(f"Proof worker {thread_id} stopped")
 
-def process_background_score(score_data):
-    """Process a score fetched in the background"""
+def generate_real_zisk_proof(job):
+    """Generate REAL ZisK proof using the actual script - NO FAKES"""
     try:
-        # Add to leaderboard
-        difficulty = score_data['difficulty']
-        if difficulty not in leaderboard:
-            leaderboard[difficulty] = []
+        logger.info(f"Starting REAL ZisK proof generation for job {job.job_id}, score: {job.score}")
         
-        leaderboard[difficulty].append({
-            'player_id': score_data['player_id'],
-            'score': score_data['score'],
-            'difficulty': difficulty,
-            'timestamp': score_data['timestamp'],
-            'source': score_data['source'],
-            'proof_hash': f"0x{hash(str(score_data)) % 1000000:06x}"
-        })
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(current_dir, "generate_zk_proof_fixed.sh")
         
-        # Sort leaderboard by score (descending)
-        leaderboard[difficulty].sort(key=lambda x: x['score'], reverse=True)
-        leaderboard[difficulty] = leaderboard[difficulty][:100]  # Keep top 100
-        
-        print(f"✅ Background score processed: {score_data['player_id']} - {score_data['score']}")
-        
-    except Exception as e:
-        print(f"❌ Error processing background score: {e}")
-
-@app.route('/api/start-background-fetcher', methods=['POST'])
-def start_background_fetcher():
-    """Start the background score fetching service"""
-    global is_background_running, background_thread
-    
-    if is_background_running:
-        return jsonify({
-            'success': False,
-            'message': 'Background fetcher is already running'
-        })
-    
-    try:
-        is_background_running = True
-        background_thread = threading.Thread(target=background_score_fetcher, daemon=True)
-        background_thread.start()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Background score fetcher started successfully',
-            'status': 'running'
-        })
-    except Exception as e:
-        is_background_running = False
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/stop-background-fetcher', methods=['POST'])
-def stop_background_fetcher():
-    """Stop the background score fetching service"""
-    global is_background_running
-    
-    if not is_background_running:
-        return jsonify({
-            'success': False,
-            'message': 'Background fetcher is not running'
-        })
-    
-    try:
-        is_background_running = False
-        if background_thread:
-            background_thread.join(timeout=5)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Background score fetcher stopped successfully',
-            'status': 'stopped'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/background-status', methods=['GET'])
-def get_background_status():
-    """Get the status of the background fetcher"""
-    return jsonify({
-        'is_running': is_background_running,
-        'background_scores_count': len(background_scores),
-        'last_background_score': background_scores[-1] if background_scores else None,
-        'uptime': 'running' if is_background_running else 'stopped'
-    })
-
-@app.route('/api/background-scores', methods=['GET'])
-def get_background_scores():
-    """Get all scores fetched in the background"""
-    limit = request.args.get('limit', 50, type=int)
-    return jsonify({
-        'scores': background_scores[-limit:],
-        'total_count': len(background_scores),
-        'fetcher_status': 'running' if is_background_running else 'stopped'
-    })
-
-def generate_zisk_proof(score):
-    """Generate ZisK proof using the generate_zk_proof.sh script"""
-    
-    # Lock file to prevent multiple simultaneous executions
-    import os
-    import fcntl
-    
-    lock_file_path = "/tmp/flappy_zisk_api.lock"
-    
-    try:
-        # Try to acquire lock
-        lock_file = open(lock_file_path, 'w')
-        try:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError:
-            print(f"❌ Another ZisK proof generation is already running for score: {score}")
+        if not os.path.exists(script_path):
             return {
                 "success": False,
-                "error": "Another ZisK proof generation is already running. Please wait for it to complete."
+                "error": f"ZisK proof script not found at {script_path}"
             }
         
-        print(f"🚀 Starting ZisK Proof Generation for score: {score}")
-        print(f"🔍 Debug: API - generate_zisk_proof called with score: {score}")
+        logger.info(f"Running REAL ZisK script: {script_path} {job.score}")
         
-        # Step 1: Run the generate_zk_proof.sh script
-        print(f"🔧 Step 1: Running generate_zk_proof.sh script with score {score}")
-        
-        print(f"🔍 Debug: About to call script with command: /Users/abix/Desktop/ZisK_project/flappy_Bird/generate_zk_proof.sh {score}")
-        print(f"🔍 Debug: Script command score parameter: {score}")
-        
-        script_result = subprocess.run(
-            ["/Users/abix/Desktop/ZisK_project/flappy_Bird/generate_zk_proof.sh", str(score)],
-            capture_output=True,
+        # Call the REAL enhanced ZisK script
+        process = subprocess.Popen(
+            [script_path, str(job.score)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            cwd="/Users/abix/Desktop/ZisK_project/flappy_Bird",
-            timeout=120
+            cwd=current_dir,
+            preexec_fn=os.setsid  # Create new process group for cleanup
         )
         
-        print(f"🔍 Debug: Script return code: {script_result.returncode}")
-        print(f"🔍 Debug: Script stdout length: {len(script_result.stdout)}")
-        print(f"🔍 Debug: Script stderr length: {len(script_result.stderr)}")
+        # Store PID for potential cleanup
+        with proof_jobs_lock:
+            job.process_pid = process.pid
         
-        print(f"🔍 Script stdout: {script_result.stdout}")
-        print(f"🔍 Script stderr: {script_result.stderr}")
-        
-        if script_result.returncode != 0:
-            print(f"⚠️  Script execution failed with exit code {script_result.returncode}")
-            print(f"   But we'll still capture the output for debugging")
-        
-        # Step 2: Run the ZisK program using ziskemu
-        print(f"⚡ Step 2: Executing ZisK program with ziskemu")
-        zisk_result = subprocess.run(
-            ["ziskemu", "-e", "./target/riscv64ima-zisk-zkvm-elf/release/flappy_bird_zisk", "-i", "build/input.bin", "-c"],
-            capture_output=True,
-            text=True,
-            cwd="/Users/abix/Desktop/ZisK_project/flappy_Bird/flappy_zisk",
-            timeout=30
-        )
-        
-        print(f"🔍 ZisK stdout: {zisk_result.stdout}")
-        print(f"🔍 ZisK stderr: {zisk_result.stderr}")
-        
-        # Return output regardless of success/failure for debugging
-        return {
-            "success": script_result.returncode == 0 and zisk_result.returncode == 0,
-            "script_output": script_result.stdout,
-            "script_stderr": script_result.stderr,
-            "zisk_output": zisk_result.stdout,
-            "zisk_stderr": zisk_result.stderr,
-            "script_exit_code": script_result.returncode,
-            "zisk_exit_code": zisk_result.returncode
-        }
-        
+        try:
+            # Wait for REAL proof completion with proper timeout (45 minutes)
+            stdout, stderr = process.communicate(timeout=2700)
+            
+            logger.info(f"REAL ZisK script completed for job {job.job_id} with exit code: {process.returncode}")
+            
+            if process.returncode == 0:
+                # Check if REAL proof file was generated
+                proof_dir = os.path.join(current_dir, "flappy_zisk", "proof")
+                proof_file = os.path.join(proof_dir, "vadcop_final_proof.bin")
+                
+                if os.path.exists(proof_file) and os.path.getsize(proof_file) > 0:
+                    return {
+                        "success": True,
+                        "output": stdout,
+                        "proof_file_path": proof_file
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": "ZisK proof file was not generated or is empty",
+                        "output": stdout
+                    }
+            else:
+                return {
+                    "success": False,
+                    "error": stderr or "ZisK proof generation failed",
+                    "output": stdout
+                }
+                
+        except subprocess.TimeoutExpired:
+            logger.warning(f"REAL ZisK proof generation timeout for job {job.job_id}")
+            
+            # Kill the process group
+            try:
+                os.killpg(os.getpgid(process.pid), 9)
+            except:
+                pass
+            
+            with proof_jobs_lock:
+                job.status = ProofStatus.TIMEOUT
+            
+            return {
+                "success": False,
+                "error": "REAL ZisK proof generation timed out after 45 minutes"
+            }
+            
     except Exception as e:
-        print(f"❌ ZisK proof generation failed: {e}")
+        logger.error(f"Error in REAL ZisK proof generation for job {job.job_id}: {e}")
         return {
             "success": False,
             "error": str(e)
         }
-    finally:
-        # Release the lock
-        try:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-            lock_file.close()
-            os.unlink(lock_file_path)
-        except:
-            pass
+
+def update_leaderboard_with_real_proof(job):
+    """Update leaderboard entry with REAL proof completion status"""
+    try:
+        with leaderboard_lock:
+            difficulty_scores = leaderboard[job.difficulty]
+            
+            # Find and update the corresponding leaderboard entry
+            for entry in difficulty_scores:
+                if (entry.get('player_id') == job.player_id and 
+                    entry.get('score') == job.score and
+                    entry.get('job_id') == job.job_id):
+                    
+                    entry['proof_status'] = job.status.value
+                    entry['proof_completed_at'] = job.completed_at.isoformat() if job.completed_at else None
+                    
+                    if job.proof_file_path:
+                        entry['proof_file_path'] = job.proof_file_path
+                    
+                    if job.error_message:
+                        entry['proof_error'] = job.error_message
+                    
+                    logger.info(f"Updated leaderboard entry with REAL proof result for job {job.job_id}")
+                    break
+                    
+    except Exception as e:
+        logger.error(f"Error updating leaderboard for job {job.job_id}: {e}")
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint - ONLY real data"""
+    with proof_jobs_lock:
+        active_count = len(active_proof_workers)
+        pending_count = proof_queue.qsize()
+        
+        total_jobs = len(proof_jobs)
+        completed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.COMPLETED])
+        failed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.FAILED])
+    
+    with leaderboard_lock:
+        total_scores = sum(len(scores) for scores in leaderboard.values())
+    
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'proof_system': {
+            'active_proofs': active_count,
+            'pending_proofs': pending_count,
+            'total_jobs': total_jobs,
+            'completed_jobs': completed_jobs,
+            'failed_jobs': failed_jobs
+        },
+        'leaderboard': {
+            'total_real_scores': total_scores,  # Only real submitted scores
+            'difficulty_levels': list(leaderboard.keys())
+        }
+    })
 
 @app.route('/api/submit-score', methods=['POST'])
 def submit_score():
-    """Submit a game score and generate ZisK proof"""
+    """Submit a REAL game score and generate REAL ZisK proof"""
     try:
         data = request.get_json()
-        player_id = data.get('player_id')
-        score = data.get('score')
-        difficulty = data.get('difficulty', 1)
         
-        if not player_id or score is None:
+        if not data or 'score' not in data or 'player_id' not in data:
             return jsonify({
-                'success': False,
-                'error': 'Missing player_id or score'
+                'success': False, 
+                'error': 'Missing required fields: score and player_id are required'
             }), 400
         
-        print(f"🎮 Score submission received: Player {player_id}, Score {score}, Difficulty {difficulty}")
-        print(f"🔍 Debug: API - Score type: {type(score)}, Score value: {score}")
+        player_id = data['player_id']
+        score = data['score']
+        difficulty = data.get('difficulty', 1)
         
-        # Generate ZisK proof using build.rs
-        proof_result = generate_zisk_proof(score)
+        logger.info(f"REAL score submission: Player {player_id}, Score {score}, Difficulty {difficulty}")
         
-        # Store in leaderboard
-        if difficulty not in leaderboard:
-            leaderboard[difficulty] = []
+        # Validate score - must be a positive number
+        if not isinstance(score, (int, float)) or score < 0:
+            return jsonify({
+                'success': False, 
+                'error': 'Invalid score value - must be a positive number'
+            }), 400
         
-        leaderboard[difficulty].append({
+        # Create REAL proof job
+        job_id = str(uuid.uuid4())
+        job = ProofJob(job_id, player_id, score, difficulty)
+        
+        with proof_jobs_lock:
+            proof_jobs[job_id] = job
+        
+        # Add REAL score to leaderboard immediately with pending proof status
+        score_entry = {
+            'job_id': job_id,
             'player_id': player_id,
             'score': score,
             'difficulty': difficulty,
             'timestamp': datetime.now().isoformat(),
-            'source': 'manual_submission',
-            'proof_hash': f"0x{hash(str(score)) % 1000000:06x}"
-        })
-        
-        # Sort leaderboard by score (descending)
-        leaderboard[difficulty].sort(key=lambda x: x['score'], reverse=True)
-        leaderboard[difficulty] = leaderboard[difficulty][:100]
-        
-        # Debug: Print what we're returning
-        print(f"🔍 Debug: proof_result = {proof_result}")
-        print(f"🔍 Debug: script_output = {proof_result.get('script_output', 'NOT_FOUND')}")
-        print(f"🔍 Debug: zisk_output = {proof_result.get('zisk_output', 'NOT_FOUND')}")
-        
-        response_data = {
-            'success': True,
-            'message': 'Score submitted successfully with ZisK proof',
-            'score_data': {
-                'score': score,
-                'player_id': player_id,
-                'difficulty': difficulty,
-                'timestamp': datetime.now().isoformat(),
-                'proof_hash': f"0x{hash(str(score)) % 1000000:06x}"
-            },
-            'zisk_proof': proof_result,
-            'main_output': proof_result.get('zisk_output', ''),
-            'build_output': proof_result.get('script_output', ''),
-            'cargo_output': 'Cargo-zisk build completed successfully!',
-            'script_details': proof_result.get('script_output', ''),
-            'zisk_details': proof_result.get('zisk_output', '')
+            'proof_status': ProofStatus.PENDING.value,
+            'proof_file_path': None
         }
         
-        print(f"🔍 Debug: Final response_data = {response_data}")
+        with leaderboard_lock:
+            leaderboard[difficulty].append(score_entry)
+            leaderboard[difficulty].sort(key=lambda x: x['score'], reverse=True)
+            # Keep top 1000 scores per difficulty
+            leaderboard[difficulty] = leaderboard[difficulty][:1000]
         
-        return jsonify(response_data)
+        # Queue REAL proof job
+        proof_queue.put(job)
+        
+        logger.info(f"REAL proof job {job_id} queued successfully")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Real score submitted successfully, ZisK proof generation queued',
+            'job_id': job_id,
+            'score_data': score_entry,
+            'proof_status': ProofStatus.PENDING.value,
+            'estimated_time': '20-45 minutes'
+        })
         
     except Exception as e:
-        print(f"❌ Score submission failed: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        logger.error(f"Error in REAL score submission: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/proof-status/<job_id>', methods=['GET'])
+def get_proof_status(job_id):
+    """Get the status of a REAL proof job"""
+    try:
+        with proof_jobs_lock:
+            if job_id not in proof_jobs:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Proof job {job_id} not found'
+                }), 404
+            
+            job = proof_jobs[job_id]
+            return jsonify({
+                'success': True,
+                'job': job.to_dict()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error getting proof status: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/proof-jobs', methods=['GET'])
+def get_proof_jobs():
+    """Get all REAL proof jobs with optional filtering"""
+    try:
+        status_filter = request.args.get('status')
+        limit = request.args.get('limit', 100, type=int)
+        
+        with proof_jobs_lock:
+            if not proof_jobs:
+                return jsonify({
+                    'success': False,
+                    'error': 'No proof jobs found - no real scores have been submitted yet'
+                }), 404
+            
+            jobs = list(proof_jobs.values())
+            
+            if status_filter:
+                jobs = [j for j in jobs if j.status.value == status_filter]
+                if not jobs:
+                    return jsonify({
+                        'success': False,
+                        'error': f'No proof jobs found with status: {status_filter}'
+                    }), 404
+            
+            # Sort by creation time (newest first)
+            jobs.sort(key=lambda x: x.created_at, reverse=True)
+            jobs = jobs[:limit]
+            
+            return jsonify({
+                'success': True,
+                'jobs': [job.to_dict() for job in jobs],
+                'total_jobs': len(proof_jobs)
+            })
+            
+    except Exception as e:
+        logger.error(f"Error getting proof jobs: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/leaderboard/<int:difficulty>', methods=['GET'])
 def get_leaderboard(difficulty):
-    """Get leaderboard for a specific difficulty level"""
-    scores = leaderboard.get(difficulty, [])
-    return jsonify({
-        'difficulty': difficulty,
-        'scores': scores[:50],
-        'total_players': len(scores),
-        'background_fetcher_status': 'running' if is_background_running else 'stopped'
-    })
-
-@app.route('/api/stats', methods=['GET'])
-def get_stats():
-    """Get overall statistics including background fetcher data"""
-    total_scores = sum(len(scores) for scores in leaderboard.values())
-    background_scores_count = len(background_scores)
-    
-    return jsonify({
-        'total_manual_scores': total_scores,
-        'total_background_scores': background_scores_count,
-        'background_fetcher_running': is_background_running,
-        'difficulty_levels': list(leaderboard.keys()),
-        'last_background_fetch': background_scores[-1] if background_scores else None
-    })
-
-@app.route('/api/clear-leaderboard', methods=['POST'])
-def clear_leaderboard():
-    """Clear all scores from a specific difficulty level"""
+    """Get leaderboard for a specific difficulty level - ONLY REAL SCORES"""
     try:
-        data = request.get_json()
-        difficulty = data.get('difficulty', 1)
+        with leaderboard_lock:
+            if difficulty not in leaderboard or not leaderboard[difficulty]:
+                return jsonify({
+                    'success': False,
+                    'error': f'No real scores found for difficulty level {difficulty}'
+                }), 404
+            
+            difficulty_scores = leaderboard[difficulty].copy()
         
-        if difficulty in leaderboard:
-            leaderboard[difficulty] = []
-            print(f"🧹 Leaderboard cleared for difficulty {difficulty}")
+        # Sort by score (descending)
+        difficulty_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Limit to top 100 scores
+        top_scores = difficulty_scores[:100]
         
         return jsonify({
             'success': True,
-            'message': f'Leaderboard cleared for difficulty {difficulty}',
-            'difficulty': difficulty
+            'difficulty': difficulty,
+            'scores': top_scores,
+            'total_scores': len(difficulty_scores)
         })
         
     except Exception as e:
-        print(f"❌ Error clearing leaderboard: {e}")
+        logger.error(f"Error getting leaderboard: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_all_leaderboards():
+    """Get all leaderboards - ONLY REAL SCORES"""
+    try:
+        with leaderboard_lock:
+            if not leaderboard:
+                return jsonify({
+                    'success': False,
+                    'error': 'No real scores found - no scores have been submitted yet'
+                }), 404
+            
+            all_leaderboards = {}
+            for difficulty, scores in leaderboard.items():
+                if scores:  # Only include difficulties that have real scores
+                    sorted_scores = sorted(scores, key=lambda x: x['score'], reverse=True)
+                    all_leaderboards[difficulty] = sorted_scores[:100]  # Top 100
+        
+        if not all_leaderboards:
+            return jsonify({
+                'success': False,
+                'error': 'No real scores found in any difficulty level'
+            }), 404
+        
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'leaderboards': all_leaderboards,
+            'difficulty_levels': list(all_leaderboards.keys())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting all leaderboards: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get comprehensive system statistics - ONLY REAL DATA"""
+    try:
+        with proof_jobs_lock:
+            if not proof_jobs:
+                proof_stats = {
+                    'total_jobs': 0,
+                    'pending': 0,
+                    'in_progress': 0,
+                    'completed': 0,
+                    'failed': 0,
+                    'timeout': 0,
+                    'active_workers': 0,
+                    'queue_size': 0,
+                    'message': 'No real proof jobs found - no scores submitted yet'
+                }
+            else:
+                proof_stats = {
+                    'total_jobs': len(proof_jobs),
+                    'pending': len([j for j in proof_jobs.values() if j.status == ProofStatus.PENDING]),
+                    'in_progress': len([j for j in proof_jobs.values() if j.status == ProofStatus.IN_PROGRESS]),
+                    'completed': len([j for j in proof_jobs.values() if j.status == ProofStatus.COMPLETED]),
+                    'failed': len([j for j in proof_jobs.values() if j.status == ProofStatus.FAILED]),
+                    'timeout': len([j for j in proof_jobs.values() if j.status == ProofStatus.TIMEOUT]),
+                    'active_workers': len(active_proof_workers),
+                    'queue_size': proof_queue.qsize()
+                }
+        
+        with leaderboard_lock:
+            if not leaderboard:
+                leaderboard_stats = {
+                    'total_scores': 0,
+                    'by_difficulty': {},
+                    'message': 'No real scores found - no scores submitted yet'
+                }
+            else:
+                leaderboard_stats = {
+                    difficulty: len(scores) for difficulty, scores in leaderboard.items() if scores
+                }
+                total_scores = sum(leaderboard_stats.values())
+                leaderboard_stats = {
+                    'total_scores': total_scores,
+                    'by_difficulty': leaderboard_stats
+                }
+        
+        return jsonify({
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'proof_system': proof_stats,
+            'leaderboard': leaderboard_stats,
+            'system_info': {
+                'only_real_data': True,
+                'no_fake_scores': True,
+                'no_mock_data': True
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting stats: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Initialize proof worker threads
+def init_proof_workers(num_workers=2):
+    """Initialize proof worker threads for REAL proof generation"""
+    for i in range(num_workers):
+        worker = threading.Thread(target=proof_worker, daemon=True)
+        worker.start()
+        logger.info(f"Started REAL proof worker thread {worker.ident}")
 
 if __name__ == '__main__':
-    print("🚀 Starting Flappy Bird ZisK API with Background Score Fetching...")
-    print("📍 API will be available at: http://localhost:8000")
-    print("🔄 Background score fetcher can be started via /api/start-background-fetcher")
+    logger.info("Starting REAL ZisK Proof API - NO FAKE DATA")
+    logger.info("System will ONLY process real submitted scores")
+    logger.info("All mock/fake implementations have been REMOVED")
     
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    # Start proof worker threads for REAL proof generation
+    init_proof_workers(num_workers=2)
+    
+    logger.info("API available at: http://localhost:8000")
+    logger.info("Submit real scores via POST /api/submit-score")
+    
+    app.run(host='0.0.0.0', port=8000, debug=True, threaded=True)

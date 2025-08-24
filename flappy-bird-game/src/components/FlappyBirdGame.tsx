@@ -12,7 +12,7 @@ import {
 import { ApiService } from '../utils/apiService';
 import { GameCanvas } from './GameCanvas';
 import { GameOverlay } from './GameOverlay';
-import { ZKProofScreen } from './ZKProofScreen';
+import ZKProofScreen from './ZKProofScreen';
 
 export const FlappyBirdGame: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({

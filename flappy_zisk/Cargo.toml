@@ -1,14 +1,14 @@
 [package]
-name = "flappy_bird_zisk"
+name = "flappy_zisk"
 version = "0.1.0"
 edition = "2021"
-default-run = "flappy_bird_zisk"
+default-run = "flappy_zisk"
 
 [build]
 build = "build.rs"
 
 [[bin]]
-name = "flappy_bird_zisk"
+name = "flappy_zisk"
 path = "src/main.rs"
 
 
