@@ -284,7 +284,7 @@ echo ""
 log_info "Step 2.5: ROM setup"
 echo "==================="
 
-# ROM setup might fail on macOS, so we handle it gracefully
+# ROM setup might fail on macOS, so we handle it gracefully on MacOs
 if execute_with_completion_check "cargo-zisk rom-setup -e target/riscv64ima-zisk-zkvm-elf/release/flappy_zisk" "ROM setup" "" 120; then
     log_info "ROM setup completed successfully"
 else
