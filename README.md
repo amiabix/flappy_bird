@@ -115,32 +115,6 @@ Access the game at: http://localhost:5173
 Game Score → API Validation → Job Creation → ZisK Processing → Proof Generation → Status Updates
 ```
 
-### System Status Endpoints
-```bash
-# Check if system is ready for submissions
-curl http://localhost:8000/api/system-status
-
-# Health check with detailed status
-curl http://localhost:8000/api/health
-```
-
-### Status Responses
-```json
-{
-  "ready_for_submissions": true,
-  "system_busy": false,
-  "message": "System is ready for new score submissions",
-  "active_jobs": 0
-}
-```
-
-### Proof Generation Status
-- **PENDING**: Job created, waiting for ZisK execution
-- **IN_PROGRESS**: ZisK proof generation in progress
-- **COMPLETED**: Proof generated successfully
-- **FAILED**: Proof generation failed
-- **TIMEOUT**: Proof generation timed out
-
 ## Troubleshooting
 
 ### Common Issues
@@ -177,12 +151,7 @@ tail -f api_server.log
 curl -s http://localhost:8000/api/system-status | jq
 ```
 
-<<<<<<< HEAD
-=======
-## Configuration
-
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
-### Environment Variables
+## Environment Variables
 ```bash
 # ZisK configuration
 export ZISK_BASE_PORT=23200
@@ -193,16 +162,8 @@ export FLASK_ENV=development
 export FLASK_DEBUG=1
 ```
 
-<<<<<<< HEAD
-=======
-### Customization Options
-- **Timeouts**: Adjust timeout values in API server
-- **Worker Count**: Change worker thread count
-- **Deduplication Window**: Modify `DEDUP_WINDOW_SECONDS`
-
 ## API Reference
 
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 ### Submit Score
 ```bash
 POST /api/submit-score
@@ -246,12 +207,8 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
-<<<<<<< HEAD
+
 ---
 
 **Happy Gaming and Proof Generation with ZisK!**
-=======
-
-**Happy Gaming and Proof Generation!**
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
 
