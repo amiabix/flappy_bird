@@ -24,16 +24,16 @@ CORS(app)
 @app.before_request
 def log_request_info():
     if request.endpoint == 'submit_score':
-        logger.info(f"🔍 FRONTEND REQUEST: {request.method} {request.url}")
-        logger.info(f"🔍 Headers: {dict(request.headers)}")
+        logger.info(f" FRONTEND REQUEST: {request.method} {request.url}")
+        logger.info(f" Headers: {dict(request.headers)}")
         try:
             data = request.get_json()
-            logger.info(f"🔍 Request Data: {data}")
+            logger.info(f" Request Data: {data}")
         except:
-            logger.info(f"🔍 Request Data: <could not parse JSON>")
-        logger.info(f"🔍 Timestamp: {datetime.now().isoformat()}")
-        logger.info(f"🔍 Remote Addr: {request.remote_addr}")
-        logger.info(f"🔍 User Agent: {request.headers.get('User-Agent', 'Unknown')}")
+            logger.info(f" Request Data: <could not parse JSON>")
+        logger.info(f" Timestamp: {datetime.now().isoformat()}")
+        logger.info(f" Remote Addr: {request.remote_addr}")
+        logger.info(f" User Agent: {request.headers.get('User-Agent', 'Unknown')}")
 
 class ProofStatus(Enum):
     PENDING = "pending"
@@ -562,6 +562,36 @@ def update_leaderboard_with_real_proof(job):
     except Exception as e:
         logger.error(f"Error updating leaderboard for job {job.job_id}: {e}")
 
+@app.route('/api/system-status', methods=['GET'])
+def system_status():
+    """Check if system is ready for new submissions"""
+    with proof_jobs_lock:
+        active_jobs = [job for job in proof_jobs.values() 
+                      if job.status in [ProofStatus.PENDING, ProofStatus.IN_PROGRESS]]
+        system_busy = len(active_jobs) > 0
+        
+        if system_busy:
+            oldest_job = min(active_jobs, key=lambda x: x.created_at)
+            elapsed_time = (datetime.now() - oldest_job.created_at).total_seconds()
+            return jsonify({
+                'ready_for_submissions': False,
+                'system_busy': True,
+                'message': 'System is currently busy generating ZisK proofs',
+                'active_jobs': len(active_jobs),
+                'oldest_job_id': oldest_job.job_id,
+                'elapsed_time': elapsed_time,
+                'estimated_wait': '5-15 minutes',
+                'timestamp': datetime.now().isoformat()
+            }), 503
+        else:
+            return jsonify({
+                'ready_for_submissions': True,
+                'system_busy': False,
+                'message': 'System is ready for new score submissions',
+                'active_jobs': 0,
+                'timestamp': datetime.now().isoformat()
+            })
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint - ONLY real data"""
@@ -572,6 +602,18 @@ def health_check():
         total_jobs = len(proof_jobs)
         completed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.COMPLETED])
         failed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.FAILED])
+        
+        # 🔒 SYSTEM BUSY STATUS CHECK
+        active_jobs = [job for job in proof_jobs.values() 
+                      if job.status in [ProofStatus.PENDING, ProofStatus.IN_PROGRESS]]
+        system_busy = len(active_jobs) > 0
+        
+        if system_busy:
+            oldest_job = min(active_jobs, key=lambda x: x.created_at)
+            elapsed_time = (datetime.now() - oldest_job.created_at).total_seconds()
+        else:
+            oldest_job = None
+            elapsed_time = 0
     
     with leaderboard_lock:
         total_scores = sum(len(scores) for scores in leaderboard.values())
@@ -579,6 +621,13 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
+        'system_busy': system_busy,
+        'busy_details': {
+            'active_jobs': len(active_jobs),
+            'oldest_job_id': oldest_job.job_id if oldest_job else None,
+            'elapsed_time': elapsed_time,
+            'estimated_wait': '5-15 minutes' if system_busy else 'Ready for new submissions'
+        },
         'proof_system': {
             'active_proofs': active_count,
             'pending_proofs': pending_count,
@@ -596,6 +645,28 @@ def health_check():
 def submit_score():
     """Submit a REAL game score and generate REAL ZisK proof"""
     try:
+        # 🔒 GLOBAL EXECUTION LOCK CHECK - PREVENT NEW SUBMISSIONS WHILE ZISK IS RUNNING
+        with proof_jobs_lock:
+            active_jobs = [job for job in proof_jobs.values() 
+                          if job.status in [ProofStatus.PENDING, ProofStatus.IN_PROGRESS]]
+            
+            if active_jobs:
+                # 🚫 SYSTEM IS BUSY - ZISK PROOF GENERATION IN PROGRESS
+                oldest_job = min(active_jobs, key=lambda x: x.created_at)
+                elapsed_time = (datetime.now() - oldest_job.created_at).total_seconds()
+                
+                logger.warning(f"🚫 SYSTEM BUSY: ZisK proof generation in progress. {len(active_jobs)} active jobs. Oldest job running for {elapsed_time:.1f}s")
+                
+                return jsonify({
+                    'success': False,
+                    'error': 'System is currently busy generating ZisK proofs. Please try again later.',
+                    'system_busy': True,
+                    'active_jobs': len(active_jobs),
+                    'oldest_job_id': oldest_job.job_id,
+                    'estimated_wait': '5-15 minutes',
+                    'message': 'Wait for current proof generation to complete before submitting new scores.'
+                }), 503  # Service Unavailable
+        
         data = request.get_json()
         
         if not data or 'score' not in data or 'player_id' not in data:

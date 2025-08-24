@@ -11,22 +11,22 @@ fn main() -> io::Result<()> {
         .parse()
         .expect("Invalid GAME_SCORE format");
 
-    // Get game ID from environment or generate a default one
-    let game_id: u64 = env::var("GAME_ID")
-        .unwrap_or_else(|_| {
-            // Generate a default game ID based on current timestamp
-            let timestamp = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            timestamp.to_string()
-        })
-        .trim()
-        .parse()
-        .unwrap_or_else(|_| {
-            // Fallback to a simple hash if parsing fails
+    // Generate a deterministic game ID to avoid parsing issues
+    let game_id: u64 = {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        
+        // Ensure timestamp is valid and create a deterministic ID
+        if timestamp < 1700000000 {
+            // Fallback timestamp if system time is wrong
             game_score.wrapping_mul(0x517cc1b727220a95)
-        });
+        } else {
+            // Use timestamp-based ID
+            (timestamp << 20) | (game_score & 0xFFFFF)
+        }
+    };
 
     println!("Building input.bin: score={}, game_id={}", game_score, game_id);
 

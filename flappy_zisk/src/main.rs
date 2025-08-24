@@ -5,29 +5,41 @@ use std::convert::TryInto;
 use ziskos::{read_input, set_output};
 
 fn main() {
+    // Read input safely
     let input: Vec<u8> = read_input();
     
+    // Validate input length first
     if input.len() != 16 {
         panic!("Invalid input: expected 16 bytes (score + game_id), got {}", input.len());
     }
     
+    // Extract score safely with bounds checking
     let score_bytes: [u8; 8] = input[0..8].try_into().unwrap();
     let game_score: u64 = u64::from_le_bytes(score_bytes);
     
+    // Extract game ID safely
     let game_id_bytes: [u8; 8] = input[8..16].try_into().unwrap();
     let game_id: u64 = u64::from_le_bytes(game_id_bytes);
     
-    // Game validation
-    assert!(game_id > 0, "Invalid game session ID");
-    assert!(game_score > 0, "Score must be positive");
-    assert!(game_score <= 1000, "Score exceeds maximum (1000)");
+    // Validate inputs before any complex operations
+    if game_score == 0 || game_score > 1000 {
+        panic!("Invalid score: {} (must be 1-1000)", game_score);
+    }
     
-    // Timestamp validation (game_id upper bits contain timestamp)
+    if game_id == 0 {
+        panic!("Invalid game session ID: {}", game_id);
+    }
+    
+    // Simplified timestamp validation to avoid complex bit operations
     let game_timestamp = game_id >> 20;
-    assert!(game_timestamp > 1700000000, "Game session appears invalid");
+    if game_timestamp < 1700000000 {
+        panic!("Game session timestamp appears invalid: {}", game_timestamp);
+    }
     
+    // Create proof binding safely
     let proof_binding = create_proof_binding(game_score, game_id);
     
+    // Set outputs safely
     set_output(0, game_score as u32);
     set_output(1, (game_score >> 32) as u32);
     set_output(2, game_id as u32);

@@ -2,6 +2,7 @@
 
 # Enhanced Flappy Bird ZisK Proof Generation Script
 # This script ensures proper sequential execution with completion verification
+# Uses custom port range (23200-23202) to avoid conflicts with other users
 
 # Lock file to prevent multiple instances from running simultaneously
 LOCK_FILE="/tmp/flappy_zisk_proof.lock"
@@ -146,9 +147,11 @@ cleanup_zisk_processes() {
 
 # Enhanced resource availability check
 wait_for_zisk_resources() {
-    local mo_port=23115
-    local mt_port=23116
-    local rh_port=23117
+    # Use custom port range to avoid conflicts with other users
+    local base_port=23200
+    local mo_port=$((base_port + 0))
+    local mt_port=$((base_port + 1))
+    local rh_port=$((base_port + 2))
     local max_wait=300
     local elapsed=0
     
@@ -316,8 +319,8 @@ sleep 5  # Give system time to clean up
 
 log_info "Starting proof generation (this may take 5-15 minutes)..."
 
-# Execute proof generation with extended timeout
-if ! execute_with_completion_check "cargo-zisk prove -e target/riscv64ima-zisk-zkvm-elf/release/flappy_zisk -i build/input.bin -o proof -a -y" "ZK proof generation" "proof/vadcop_final_proof.bin" 1800; then  # 30 minute timeout
+# Execute proof generation with extended timeout and custom port
+if ! execute_with_completion_check "cargo-zisk prove -e target/riscv64ima-zisk-zkvm-elf/release/flappy_zisk -i build/input.bin -o proof -a -y -p 23200" "ZK proof generation" "proof/vadcop_final_proof.bin" 1800; then  # 30 minute timeout
     log_error "Step 4 failed"
     exit 1
 fi

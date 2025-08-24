@@ -25,6 +25,7 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [monitoringInterval, setMonitoringInterval] = useState<number | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false); // NEW: Prevent duplicate submissions
+  const [systemStatus, setSystemStatus] = useState<{ready: boolean, message?: string} | null>(null);
 
   const handleSubmitScore = useCallback(async () => {
     // Prevent duplicate submissions
@@ -53,8 +54,14 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
         startMonitoring(result.job_id);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to submit score');
-      console.error('❌ Error submitting score:', err);
+      // Handle specific system busy error
+      if (err.message && err.message.includes('System is currently busy')) {
+        setError('🚫 System is currently busy generating ZisK proofs. Please try again in a few minutes.');
+        console.log('🚫 System busy - user will need to wait');
+      } else {
+        setError(err.message || 'Failed to submit score');
+        console.error('❌ Error submitting score:', err);
+      }
       setHasSubmitted(false); // Reset on error to allow retry
     } finally {
       setIsSubmitting(false);
@@ -101,6 +108,28 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
     }
   };
 
+  const checkSystemStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/system-status');
+      if (response.ok) {
+        const data = await response.json();
+        setSystemStatus({
+          ready: data.ready_for_submissions,
+          message: data.message
+        });
+      } else if (response.status === 503) {
+        // System is busy
+        const data = await response.json();
+        setSystemStatus({
+          ready: false,
+          message: data.message || 'System is currently busy'
+        });
+      }
+    } catch (err) {
+      console.error('Error checking system status:', err);
+    }
+  };
+
   const downloadProofFile = async () => {
     if (!proofStatus?.proof_file_path) return;
     
@@ -123,6 +152,11 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
       console.error('Error downloading proof file:', err);
     }
   };
+
+  // Check system status when component mounts
+  useEffect(() => {
+    checkSystemStatus();
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -204,6 +238,28 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
         <div className="text-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-700">Score: {score} points</h2>
         </div>
+
+        {/* System Status Display */}
+        {systemStatus && (
+          <div className={`border rounded-lg p-4 mb-6 ${
+            systemStatus.ready 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-orange-50 border-orange-200'
+          }`}>
+            <div className="flex items-center justify-center">
+              {systemStatus.ready ? (
+                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+              ) : (
+                <Clock className="w-5 h-5 text-orange-500 mr-2" />
+              )}
+              <span className={`font-medium ${
+                systemStatus.ready ? 'text-green-700' : 'text-orange-700'
+              }`}>
+                {systemStatus.message}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Status Display */}
         {isSubmitting && (
@@ -307,19 +363,19 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
           <h3 className="text-xl font-semibold text-gray-800 mb-4">What's Happening?</h3>
           <div className="text-gray-600 space-y-3">
             <p>
-              Your score is being cryptographically proven using Zero-Knowledge Proofs. 
+              Your score is being submitted to the ZisK proof generation system. 
               This process involves:
             </p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Building the program with your score</li>
-              <li>Compiling with ZisK</li>
+              <li>Compiling and generating the input file with ZisK</li>
               <li>Setting up the execution environment</li>
               <li>Running the program</li>
-              <li>Generating the cryptographic proof</li>
+              <li>Generating the cryptographic proof with ZisK</li>
               <li>Verifying the proof</li>
             </ul>
             <p className="mt-4 text-sm text-gray-500">
-              This process typically takes 15-20 minutes. The proof will be generated in the background.
+              This process typically takes ~200 seconds, and the proof will be generated in the background.
             </p>
           </div>
         </div>
