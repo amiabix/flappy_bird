@@ -1,28 +1,28 @@
 # Flappy Bird ZisK Proof Generation System
 
-A proof generation system for Flappy Bird game scores using ZisK. This project generates mathematical proofs for game achievements that can be verified without revealing the original game data.
+A proof generation system for Flappy Bird game scores using ZisK. This project generates proofs for game score's that can be verified without revealing the original game data.
 
-## Features
+## What This System Does
 
-### Core Functionality
-- **Real-time Game Integration**: Submit scores immediately after playing
-- **Mathematical Proofs**: Generate proofs that verify score authenticity
-- **Proof Verification**: Verify proofs without access to original data
-- **Custom Port Configuration**: Avoid conflicts with custom port ranges (23200-23202)
+**Play Flappy Bird, Submit Scores, Get Proofs**
+- Play the game normally and submit your score when you're done
+- The system generates a mathematical proof that your score is real
+- Anyone can verify your proof without seeing your actual gameplay
+- Uses custom ports (23200-23202) so it doesn't conflict with other users
 
-### Advanced System Features
-- **Global Execution Lock**: Prevents multiple processes from running simultaneously
-- **Duplicate Prevention**: 30-second window to prevent duplicate submissions
-- **Real-time Monitoring**: Live status updates for proof generation
-- **Multi-threaded Processing**: Efficient handling of multiple requests
-- **Automatic Recovery**: System automatically resumes after completion
+**Smart System Management**
+- Only one proof generation runs at a time (prevents crashes)
+- Stops duplicate submissions within 30 seconds
+- Shows live updates on proof generation progress
+- Automatically handles multiple requests efficiently
+- Recovers automatically if something goes wrong
 
-### Frontend Features
-- **Modern React Interface**: Built with React 18 and TypeScript
-- **Real-time Status Updates**: Live monitoring of proof generation progress
-- **System Status Display**: Shows when system is ready for new submissions
-- **Error Handling**: Clear feedback for system busy states and errors
-- **Proof Download**: Download generated proof files for verification
+**User Interface**
+- Clean React frontend with TypeScript
+- Real-time status updates as proofs generate
+- Shows when the system is busy or ready for new scores
+- Clear error messages and system status
+- Download your generated proofs when ready
 
 ## Architecture
 
