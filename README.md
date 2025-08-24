@@ -2,9 +2,12 @@
 
 A proof generation system for Flappy Bird game scores using ZisK. This project generates proofs for game score's that can be verified without revealing the original game data.
 
+<img width="1003" height="572" alt="image" src="https://github.com/user-attachments/assets/e20d6427-3b92-4b17-a8c0-35e5014bc88b" />
+
+
 ## What This System Does
 
-This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. The system uses custom ports (23200-23202) to avoid conflicts with other users, runs only one proof generation at a time to prevent crashes, and provides a clean React frontend with real-time updates on proof generation progress. It automatically handles duplicate submissions, manages multiple requests efficiently, and recovers from errors automatically.
+This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. 
 
 ## Architecture
 
@@ -225,7 +228,6 @@ export FLASK_DEBUG=1
 ```
 
 ### Customization Options
-- **Port Ranges**: Modify `base_port` in scripts
 - **Timeouts**: Adjust timeout values in API server
 - **Worker Count**: Change worker thread count
 - **Deduplication Window**: Modify `DEDUP_WINDOW_SECONDS`
