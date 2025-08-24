@@ -603,7 +603,7 @@ def health_check():
         completed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.COMPLETED])
         failed_jobs = len([j for j in proof_jobs.values() if j.status == ProofStatus.FAILED])
         
-        # 🔒 SYSTEM BUSY STATUS CHECK
+        # SYSTEM BUSY STATUS CHECK
         active_jobs = [job for job in proof_jobs.values() 
                       if job.status in [ProofStatus.PENDING, ProofStatus.IN_PROGRESS]]
         system_busy = len(active_jobs) > 0
@@ -645,7 +645,7 @@ def health_check():
 def submit_score():
     """Submit a REAL game score and generate REAL ZisK proof"""
     try:
-        # 🔒 GLOBAL EXECUTION LOCK CHECK - PREVENT NEW SUBMISSIONS WHILE ZISK IS RUNNING
+        # GLOBAL EXECUTION LOCK CHECK - PREVENT NEW SUBMISSIONS WHILE ZISK IS RUNNING
         with proof_jobs_lock:
             active_jobs = [job for job in proof_jobs.values() 
                           if job.status in [ProofStatus.PENDING, ProofStatus.IN_PROGRESS]]
@@ -682,7 +682,7 @@ def submit_score():
         
         logger.info(f"REAL score submission: Player {player_id}, Score {score}, Difficulty {difficulty}, Request ID: {request_id}")
         
-        # 🔒 BULLETPROOF DEDUPLICATION CHECK - MULTIPLE LEVELS
+        # BULLETPROOF DEDUPLICATION CHECK - MULTIPLE LEVELS
         
         # Level 1: Check by score+player+difficulty (time window)
         dedup_key = (player_id, score, difficulty)
@@ -739,7 +739,7 @@ def submit_score():
         # Generate Game ID for tamper-proof binding
         job.game_id = generate_game_id(job_id, score)
         
-        # 🔒 RECORD THIS SUBMISSION FOR DEDUPLICATION
+        # RECORD THIS SUBMISSION FOR DEDUPLICATION
         with dedup_lock:
             recent_submissions[dedup_key] = {
                 'timestamp': current_time,
@@ -1264,7 +1264,7 @@ if __name__ == '__main__':
     logger.info("System will ONLY process real submitted scores")
     logger.info("All mock/fake implementations have been REMOVED")
     logger.info("Enhanced with bulletproof worker system and psutil-free process management")
-    logger.info("🔒 BULLETPROOF DUPLICATE PREVENTION ENABLED - 30 second window")
+    logger.info("BULLETPROOF DUPLICATE PREVENTION ENABLED - 30 second window")
     
     # Register shutdown handler
     import atexit

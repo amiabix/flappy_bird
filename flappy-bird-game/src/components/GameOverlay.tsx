@@ -68,7 +68,7 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
         {gameStatus === 'gameOver' && (
           <>
             <div className="text-6xl mb-4">
-              {isNewHighScore ? '🎉' : '💫'}
+              {isNewHighScore ? 'NEW HIGH SCORE!' : 'GAME OVER'}
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               {isNewHighScore ? 'New High Score!' : 'Game Over!'}

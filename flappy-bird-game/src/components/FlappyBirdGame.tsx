@@ -98,7 +98,7 @@ export const FlappyBirdGame: React.FC = () => {
               if (success) {
                 console.log(`🎯 Score ${newScore} submitted to API successfully!`);
               } else {
-                console.log('⚠️ Score submission failed, but game continues');
+                console.log('Score submission failed, but game continues');
               }
             });
           }
@@ -210,7 +210,7 @@ export const FlappyBirdGame: React.FC = () => {
           setLeaderboard(data);
         }
       } else {
-        console.log('⚠️ Failed to submit current score');
+        console.log('Failed to submit current score');
       }
     }
   };
@@ -248,7 +248,7 @@ export const FlappyBirdGame: React.FC = () => {
               </div>
               {gameSpeed > 1.2 && (
                 <div className="text-xs text-orange-500 font-semibold mt-1">
-                  SPEED BOOST! 🚀
+                  SPEED BOOST!
                 </div>
               )}
             </div>
