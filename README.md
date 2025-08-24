@@ -249,12 +249,5 @@ npm test
 # Test ZisK integration
 ./generate_zk_proof_fixed.sh 5
 ```
-<<<<<<< HEAD
 ---
-
 **Happy Gaming and Proof Generation with ZisK!**
-=======
-
-**Happy Gaming and Proof Generation!**
->>>>>>> 04e2e668e6f3aee4177f3f946abbf78c8160a7f6
-
