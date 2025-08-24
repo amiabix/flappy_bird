@@ -2,6 +2,9 @@
 
 A proof generation system for Flappy Bird game scores using ZisK. This project generates proofs for game score's that can be verified without revealing the original game data.
 
+<img width="1003" height="572" alt="image" src="https://github.com/user-attachments/assets/d5dcd2c9-f5f1-46dd-a953-c8e6f0324108" />
+
+
 
 ## What This System Does
 
