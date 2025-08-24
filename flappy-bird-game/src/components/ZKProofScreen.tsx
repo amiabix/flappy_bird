@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, CheckCircle, Clock, AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { ApiService } from '../utils/apiService';
 
 interface ZKProofScreenProps {
@@ -7,14 +7,35 @@ interface ZKProofScreenProps {
   onBack: () => void;
 }
 
+interface ProofStatus {
+  job_id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'timeout';
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  proof_file_path?: string;
+  error_message?: string;
+}
+
 const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [proofStatus, setProofStatus] = useState<ProofStatus | null>(null);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [monitoringInterval, setMonitoringInterval] = useState<number | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false); // NEW: Prevent duplicate submissions
 
-  const handleSubmitScore = async () => {
+  const handleSubmitScore = useCallback(async () => {
+    // Prevent duplicate submissions
+    if (hasSubmitted || isSubmitting) {
+      console.log('🚫 Score already submitted or submission in progress, skipping...');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
+    setHasSubmitted(true); // Mark as submitted
     
     try {
       const playerId = ApiService.generatePlayerId();
@@ -26,11 +47,131 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
       
       setSubmissionResult(result);
       console.log('✅ Score submitted successfully:', result);
+      
+      // Start monitoring the proof generation
+      if (result.job_id) {
+        startMonitoring(result.job_id);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to submit score');
       console.error('❌ Error submitting score:', err);
+      setHasSubmitted(false); // Reset on error to allow retry
     } finally {
       setIsSubmitting(false);
+    }
+  }, [score, hasSubmitted, isSubmitting]);
+
+  const startMonitoring = (jobId: string) => {
+    setIsMonitoring(true);
+    
+    // Initial status check
+    checkProofStatus(jobId);
+    
+    // Set up monitoring interval (check every 10 seconds)
+    const interval = setInterval(() => {
+      checkProofStatus(jobId);
+    }, 10000);
+    
+    setMonitoringInterval(interval);
+  };
+
+  const checkProofStatus = async (jobId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/proof-status/${jobId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setProofStatus(data.job);
+        
+        // Stop monitoring if job is completed or failed
+        if (data.job.status === 'completed' || data.job.status === 'failed' || data.job.status === 'timeout') {
+          stopMonitoring();
+        }
+      }
+    } catch (err) {
+      console.error('Error checking proof status:', err);
+    }
+  };
+
+  const stopMonitoring = () => {
+    setIsMonitoring(false);
+    if (monitoringInterval) {
+      clearInterval(monitoringInterval);
+      setMonitoringInterval(null);
+    }
+  };
+
+  const downloadProofFile = async () => {
+    if (!proofStatus?.proof_file_path) return;
+    
+    try {
+      // Create a download link for the proof file
+      const response = await fetch(`http://localhost:8000/api/download-proof/${proofStatus.job_id}`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `zisk_proof_score_${score}.bin`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.error('Error downloading proof file:', err);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-6 h-6 text-yellow-500" />;
+      case 'in_progress':
+        return <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />;
+      case 'completed':
+        return <CheckCircle className="w-6 h-6 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="w-6 h-6 text-red-500" />;
+      case 'timeout':
+        return <AlertCircle className="w-6 h-6 text-orange-500" />;
+      default:
+        return <Clock className="w-6 h-6 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-50 border-yellow-200 text-yellow-700';
+      case 'in_progress':
+        return 'bg-blue-50 border-blue-200 text-blue-700';
+      case 'completed':
+        return 'bg-green-50 border-green-200 text-green-700';
+      case 'failed':
+        return 'bg-red-50 border-red-200 text-red-700';
+      case 'timeout':
+        return 'bg-orange-50 border-orange-200 text-orange-700';
+      default:
+        return 'bg-gray-50 border-gray-200 text-gray-700';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Waiting in Queue';
+      case 'in_progress':
+        return 'Generating ZisK Proof';
+      case 'completed':
+        return 'Proof Generation Complete!';
+      case 'failed':
+        return 'Proof Generation Failed';
+      case 'timeout':
+        return 'Proof Generation Timed Out';
+      default:
+        return 'Unknown Status';
     }
   };
 
@@ -38,7 +179,12 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
     if (score > 0) {
       handleSubmitScore();
     }
-  }, [score]);
+    
+    // Cleanup monitoring on unmount
+    return () => {
+      stopMonitoring();
+    };
+  }, [score, handleSubmitScore]); // Added handleSubmitScore to dependency array
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -79,13 +225,62 @@ const ZKProofScreen: React.FC<ZKProofScreenProps> = ({ score, onBack }) => {
               Your score of {score} points has been submitted and ZisK proof generation has started.
             </p>
             <div className="mt-4 p-4 bg-white rounded-lg">
-              <h3 className="font-semibold text-gray-800 mb-2">Proof Generation Status:</h3>
+              <h3 className="font-semibold text-gray-800 mb-2">Job Details:</h3>
               <div className="text-sm text-gray-600">
-                <p>• Proof Hash: {submissionResult.score_data?.proof_hash}</p>
+                <p>• Job ID: {submissionResult.job_id}</p>
                 <p>• Status: {submissionResult.proof_status}</p>
                 <p>• Estimated Time: {submissionResult.estimated_time}</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Real-time Proof Status */}
+        {proofStatus && (
+          <div className={`border rounded-lg p-6 mb-6 ${getStatusColor(proofStatus.status)}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                {getStatusIcon(proofStatus.status)}
+                <span className="ml-3 text-lg font-semibold">{getStatusText(proofStatus.status)}</span>
+              </div>
+              {isMonitoring && (
+                <div className="flex items-center text-sm">
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Monitoring...
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              {proofStatus.started_at && (
+                <p>• Started: {new Date(proofStatus.started_at).toLocaleString()}</p>
+              )}
+              {proofStatus.duration_seconds && (
+                <p>• Duration: {Math.floor(proofStatus.duration_seconds / 60)}m {proofStatus.duration_seconds % 60}s</p>
+              )}
+              {proofStatus.proof_file_path && (
+                <p>• Proof File: {proofStatus.proof_file_path.split('/').pop()}</p>
+              )}
+              {proofStatus.error_message && (
+                <p>• Error: {proofStatus.error_message}</p>
+              )}
+            </div>
+
+            {/* Download Button for Completed Proofs */}
+            {proofStatus.status === 'completed' && proofStatus.proof_file_path && (
+              <div className="mt-4">
+                <button
+                  onClick={downloadProofFile}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download ZisK Proof
+                </button>
+                <p className="text-sm text-green-600 mt-2">
+                  Your cryptographic proof is ready! Download the .bin file.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
