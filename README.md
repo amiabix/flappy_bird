@@ -1,200 +1,141 @@
-# Flappy Bird Game with Zero-Knowledge Proof (ZisK) Generation
+# Flappy Bird with ZisKVM
 
-A complete implementation of the classic Flappy Bird game enhanced with cryptographic zero-knowledge proof generation using the ZisK toolchain. This project demonstrates real-time game score verification through cryptographic proofs.
+A full version of the classic Flappy Bird game, combined with a proof system that verifies scores using the ZisK toolchain. The idea is simple: whenever you finish a game, your score gets locked and verified so no one can fake or tamper with it.
+
+<img width="1024" height="748" alt="image" src="https://github.com/user-attachments/assets/d8c1d32a-6956-4a37-9942-e1fc29aa0e46" />
+
+---
 
 ## Overview
 
-This project combines a React-based Flappy Bird game with a Flask backend API that generates cryptographic proofs for game scores using the ZisK (Zero-Knowledge) toolchain. Each game score is cryptographically verified and bound to a unique game session ID, ensuring tamper-proof verification.
+This project brings together three main parts:
+
+* A **Flappy Bird game** built with React
+* A **Flask backend** to handle score submissions and run verification
+* A **ZisK program** (written in Rust) that generates proofs showing each score is real and tied to a unique game session
+
+Every submitted score is verified and linked to the game it came from, making it secure and tamper-proof.
+
+---
 
 ## Features
 
-- **Real Flappy Bird Game**: Classic gameplay with modern React/TypeScript implementation
-- **Zero-Knowledge Proof Generation**: Real cryptographic proofs for each game score
-- **Game ID Binding**: Each proof is cryptographically bound to a unique game session
-- **Bulletproof Architecture**: Robust backend with worker threads and duplicate prevention
-- **Real-Time Monitoring**: Live proof generation status and progress tracking
-- **Production Ready**: No fake implementations, only real ZisK execution
+* **Classic Gameplay**: Flappy Bird, rebuilt with React + TypeScript
+* **Score Verification**: Every score comes with a cryptographic proof
+* **Session Binding**: Proofs are tied to unique game sessions
+* **Robust Backend**: Handles multiple jobs and prevents duplicates
+* **Real-Time Tracking**: See the status of your proof as it’s generated
+  
+---
 
 ## Architecture
 
 ### Frontend (React + TypeScript)
-- **Game Engine**: Custom Flappy Bird implementation with physics
-- **Proof Monitoring**: Real-time status display for ZisK proof generation
-- **Score Submission**: Secure score submission with duplicate prevention
-- **Modern UI**: Clean, responsive interface with real-time updates
+
+* Game engine with proper physics
+* Submit scores securely with duplicate prevention
+* Display live updates on proof status
+* Modern, responsive interface
 
 ### Backend (Flask + Python)
-- **API Server**: RESTful endpoints for score submission and proof monitoring
-- **Worker System**: Multi-threaded proof generation with job queuing
-- **ZisK Integration**: Direct integration with ZisK toolchain
-- **Duplicate Prevention**: 30-second window to prevent duplicate submissions
-- **Process Management**: Robust process handling and cleanup
+
+* REST API for score submission and monitoring
+* Multi-threaded worker system for proof generation
+* 30-second window to prevent duplicate score submissions
+* Handles cleanup and resource management
 
 ### ZisK Integration (Rust)
-- **Build Script**: Generates input files with score and game ID
-- **ZisK Program**: Rust implementation for proof generation
-- **Proof Verification**: Cryptographic verification of generated proofs
+
+* Input builder: packages score + game ID
+* Proof program: generates the cryptographic proof
+* Verification: checks if the proof is valid
+
+---
 
 ## Prerequisites
 
-- Python 3.8+
-- Node.js 16+
-- Rust toolchain
-- ZisK toolchain installed
-- Linux/macOS environment
+* Python 3.8+
+* Node.js 16+
+* Rust toolchain
+* ZisK installed (`cargo-zisk` and `ziskemu` available)
+* Linux/macOS
+
+---
 
 ## Installation
 
-1. **Clone the repository**:
+1. Clone the repo:
+
    ```bash
    git clone https://github.com/amiabix/flappy_bird.git
    cd flappy_bird
    ```
 
-2. **Install Python dependencies**:
+2. Install Python dependencies:
+
    ```bash
    pip install flask flask-cors
    ```
 
-3. **Install Node.js dependencies**:
+3. Install Node.js dependencies:
+
    ```bash
    cd flappy-bird-game
    npm install
    ```
 
-4. **Install ZisK toolchain**:
-   ```bash
-   # Follow ZisK installation instructions
-   # Ensure cargo-zisk and ziskemu are available
-   ```
+4. Install ZisK toolchain (follow official docs).
+
+---
 
 ## Usage
 
-### Starting the System
+### Start everything
 
-1. **Start the Backend API**:
-   ```bash
-   python3 api_server.py
-   ```
-   The API will be available at `http://localhost:8000`
+* Run the backend:
 
-2. **Start the Frontend**:
-   ```bash
-   cd flappy-bird-game
-   npm run dev -- --host 0.0.0.0
-   ```
-   The game will be available at `http://localhost:5173`
+  ```bash
+  python3 api_server.py
+  ```
 
-### Playing the Game
+  → API available at `http://localhost:8000`
 
-1. **Open the game** in your browser at `http://localhost:5173`
-2. **Play Flappy Bird** and achieve a score
-3. **Submit your score** to generate a ZisK proof
-4. **Monitor proof generation** in real-time
-5. **Download the proof** once generation is complete
+* Run the frontend:
 
-### API Endpoints
+  ```bash
+  cd flappy-bird-game
+  npm run dev -- --host 0.0.0.0
+  ```
 
-- `POST /api/submit-score` - Submit a game score
-- `GET /api/proof-status/<job_id>` - Get proof generation status
-- `GET /api/worker-status` - Monitor worker threads
-- `GET /api/leaderboard/<difficulty>` - View leaderboard
-- `GET /api/download-proof/<job_id>` - Download generated proof
-- `GET /api/health` - System health check
+  → Game available at `http://localhost:5173`
 
-## ZisK Proof Generation Process
+### Play & Verify
 
-1. **Input Generation**: `build.rs` creates `input.bin` with score and game ID
-2. **Program Build**: `cargo-zisk build --release` compiles the ZisK program
-3. **ROM Setup**: `cargo-zisk rom-setup` prepares the execution environment
-4. **Program Execution**: `ziskemu` runs the program with input data
-5. **Proof Generation**: `cargo-zisk prove` generates the cryptographic proof
-6. **Verification**: `cargo-zisk verify` verifies the generated proof
+1. Open `http://localhost:5173`
+2. Play Flappy Bird and set a score
+3. Submit score → backend starts proof generation
+4. Watch proof status live
+5. Download proof when complete
 
-## Configuration
+---
 
-### Environment Variables
-- `GAME_SCORE`: The game score to prove
-- `GAME_ID`: Unique identifier for the game session
+## API Endpoints
 
-### Script Configuration
-- `generate_zk_proof_fixed.sh`: Main ZisK orchestration script
-- Timeout settings: 30 minutes for proof generation
-- Resource management: Automatic cleanup of ZisK processes
+* `POST /api/submit-score` – Submit a score
+* `GET /api/proof-status/<job_id>` – Proof generation status
+* `GET /api/worker-status` – Check worker health
+* `GET /api/leaderboard/<difficulty>` – Leaderboard
+* `GET /api/download-proof/<job_id>` – Download proof
+* `GET /api/health` – System check
 
-## Security Features
+---
 
-- **Game ID Binding**: Each proof is cryptographically bound to a unique game session
-- **Duplicate Prevention**: 30-second window prevents duplicate score submissions
-- **Process Isolation**: ZisK processes run in isolated process groups
-- **Resource Cleanup**: Automatic cleanup of shared memory and processes
+## Proof Generation Steps
 
-## Monitoring and Debugging
+1. Input file created with score + game ID
+2. Program built with `cargo-zisk build --release`
+3. Execution environment prepared (`cargo-zisk rom-setup`)
+4. Program runs with `ziskemu`
+5. Proof generated (`cargo-zisk prove`)
+6. Proof verified (`cargo-zisk verify`)
 
-### Real-Time Status
-- Live proof generation progress
-- Worker thread status monitoring
-- Process resource usage tracking
-- Error logging and debugging information
-
-### Log Files
-- API server logs with detailed request information
-- ZisK script execution logs
-- Worker thread activity logs
-- Error and warning messages
-
-## Troubleshooting
-
-### Common Issues
-
-1. **ZisK Toolchain Errors**:
-   - Ensure ZisK is properly installed
-   - Check system resource availability
-   - Verify Rust toolchain installation
-
-2. **Process Conflicts**:
-   - Kill existing ZisK processes: `pkill -f "cargo-zisk"`
-   - Clean shared memory: `find /dev/shm -name "ZISK_*" -delete`
-   - Restart the API server
-
-3. **Port Conflicts**:
-   - Check if ports 8000 (API) and 5173 (Frontend) are available
-   - Kill conflicting processes if necessary
-
-### Debug Mode
-- Set `debug=False` in `api_server.py` for production stability
-- Enable detailed logging for troubleshooting
-- Monitor worker thread health and restart if needed
-
-## Performance
-
-- **Proof Generation Time**: 2-15 minutes depending on score complexity
-- **Concurrent Processing**: Multiple proof jobs can be queued
-- **Resource Usage**: High memory usage during proof generation (8-20 GB)
-- **Scalability**: Worker thread system allows horizontal scaling
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- ZisK team for the zero-knowledge proof toolchain
-- React and Flask communities for the web frameworks
-- Rust community for the systems programming language
-
-## Support
-
-For issues and questions:
-- Check the troubleshooting section
-- Review the logs for error details
-- Ensure all prerequisites are met
-- Verify ZisK toolchain installation
