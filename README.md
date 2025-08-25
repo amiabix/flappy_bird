@@ -8,7 +8,7 @@ A proof generation system for Flappy Bird game scores using ZisK. This project g
 
 ## What This System Does
 
-This system lets you play Flappy Bird, submit your scores, and automatically generates mathematical proofs that verify your achievements are real. Anyone can verify these proofs without seeing your actual gameplay. 
+This system lets you play Flappy Bird, submit your scores, and automatically generates proofs that verify your score's are real, Anyone can verify these proofs without seeing your actual gameplay. 
 
 ## Architecture
 
@@ -100,7 +100,6 @@ Access the game at: http://localhost:5173
 ```
 
 ## How It Works
-
 ### 1. Score Submission
 1. User plays Flappy Bird and achieves a score
 2. Frontend submits score to backend API
@@ -118,53 +117,6 @@ Access the game at: http://localhost:5173
 ```
 Game Score → API Validation → Job Creation → ZisK Processing → Proof Generation → Status Updates
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-#### Port Conflicts
-```bash
-# Check what's using ZisK ports
-netstat -tuln | grep -E "23118|23119|23120"
-
-# Use custom ports in generate_zk_proof_fixed.sh
-```
-
-#### System Busy Error
-```
-Error: "System is currently busy generating ZisK proofs"
-Solution: Wait for current proof to complete (5-15 minutes)
-```
-
-#### Frontend Stuck on "Submitting score..."
-```
-Cause: System busy, frontend not handling 503 response
-Solution: Refresh page, system will show proper status
-```
-
-### Debug Commands
-```bash
-# Check ZisK processes
-ps aux | grep -E "zec-keccakf|cargo-zisk|ziskemu"
-
-# Check API server logs
-tail -f api_server.log
-
-# Check system status
-curl -s http://localhost:8000/api/system-status | jq
-```
-
-<<<<<<< HEAD
-## Environment Variables
-=======
-## Configuration
-
-### Environment Variables
-```bash
-# ZisK configuration
-export ZISK_BASE_PORT=23200
-export ZISK_TIMEOUT=1800
 
 # API configuration
 export FLASK_ENV=development
