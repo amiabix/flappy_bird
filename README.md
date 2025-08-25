@@ -23,7 +23,6 @@ This system lets you play Flappy Bird, submit your scores, and automatically gen
 ### Port Configuration
 - **Frontend**: Port 5173 (React + Vite)
 - **Backend API**: Port 8000 (Flask)
-- **ZisK Engine**: Custom ports (23200-23202) to avoid conflicts
 
 ## Installation & Setup
 
