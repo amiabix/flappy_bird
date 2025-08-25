@@ -57,16 +57,7 @@ cd flappy_zisk
 cargo build --release
 ```
 
-### 3. Configure ZisK
-```bash
-# Install ZisK tools
-cargo install cargo-zisk
-cargo install ziskemu
-
-# Verify installation
-cargo-zisk --version
-ziskemu --version
-```
+### 3. Configure ZisK: Before proceeding, **ensure ZisK is installed** by following the official installation guide: [ZisK Installation Instructions](https://0xpolygonhermez.github.io/zisk/getting_started/installation.html#installing-zisk)
 
 ## Running the System
 
