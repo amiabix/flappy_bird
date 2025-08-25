@@ -57,7 +57,7 @@ cd flappy_zisk
 cargo build --release
 ```
 
-### 3. Configure ZisK: Before proceeding, **ensure ZisK is installed** by following the official installation guide: [ZisK Installation Instructions](https://0xpolygonhermez.github.io/zisk/getting_started/installation.html#installing-zisk)
+### 3. Configure ZisK: Before proceeding, **ensure ZisK is installed** by following the official installation guide, [ZisK Installation Instructions](https://0xpolygonhermez.github.io/zisk/getting_started/installation.html#installing-zisk)
 
 ## Running the System
 
