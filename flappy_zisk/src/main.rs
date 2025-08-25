@@ -47,7 +47,7 @@ fn main() {
     set_output(4, proof_binding);
 }
 
-// Cryptographic binding prevents proof replay attacks
+// binding prevents proof replay attacks
 fn create_proof_binding(score: u64, game_id: u64) -> u32 {
     let mut combined = score ^ game_id.rotate_left(32);
     
