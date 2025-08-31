@@ -87,13 +87,22 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
             </div>
             <div className="space-y-3">
               {score > 0 && (
-              <button
-                onClick={onGenerateProof}
-                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto group"
-              >
-                <Zap size={20} className="group-hover:scale-110 transition-transform" />
-                Generate ZisK Proof
-              </button>
+                <>
+                  <button
+                    onClick={onSubmitCurrentScore}
+                    className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto group"
+                  >
+                    <Trophy size={20} className="group-hover:scale-110 transition-transform" />
+                    Submit Score: {score}
+                  </button>
+                  <button
+                    onClick={onGenerateProof}
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto group"
+                  >
+                    <Zap size={20} className="group-hover:scale-110 transition-transform" />
+                    Generate ZisK Proof
+                  </button>
+                </>
               )}
               <button
                 onClick={onRestart}

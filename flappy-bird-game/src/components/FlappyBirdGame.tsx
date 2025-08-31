@@ -88,19 +88,30 @@ export const FlappyBirdGame: React.FC = () => {
           const finalHighScore = Math.max(newScore, prevState.highScore);
           localStorage.setItem('flappyHighScore', finalHighScore.toString());
           
-          // Automatically submit score to API when game ends
-          if (newScore > 0) {
-            ApiService.submitScore({
-              player_id: playerId,
-              score: newScore,
-              difficulty: 1
-            }).then(success => {
-              if (success) {
-                console.log(`🎯 Score ${newScore} submitted to API successfully!`);
-              } else {
-                console.log('Score submission failed, but game continues');
-              }
-            });
+          // Game ends - score is NOT automatically submitted
+          // User must manually click "Submit Score" to submit
+          console.log(`🎮 Game Over! Score: ${newScore}. Click "Submit Score" to submit to leaderboard.`);
+          
+          // End backend session if we have one
+          if (prevState.currentSessionId && prevState.currentSessionId.startsWith('session_')) {
+            try {
+              fetch('http://localhost:5000/api/end-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  session_id: prevState.currentSessionId,
+                  final_score: newScore
+                })
+              }).then(response => {
+                if (response.ok) {
+                  console.log(`🏁 Backend session ended with score: ${newScore}`);
+                } else {
+                  console.error('Failed to end backend session');
+                }
+              });
+            } catch (error) {
+              console.error('Error ending backend session:', error);
+            }
           }
           
           return {
@@ -110,6 +121,7 @@ export const FlappyBirdGame: React.FC = () => {
             score: newScore,
             gameStatus: 'gameOver',
             highScore: finalHighScore,
+            currentSessionId: prevState.currentSessionId, // Preserve session ID for ZisK proof
           };
         }
 
@@ -157,21 +169,78 @@ export const FlappyBirdGame: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [handleJump]);
 
-  const startGame = () => {
-    setGameState(prevState => ({
-      ...prevState,
-      bird: {
-        x: GAME_CONFIG.CANVAS_WIDTH * 0.3,
-        y: GAME_CONFIG.CANVAS_HEIGHT / 2,
-        velocity: 0,
-        rotation: 0,
-      },
-      pipes: [],
-      score: 0,
-      gameStatus: 'playing',
-    }));
-    setFrameCount(0);
-    setPipeId(0);
+  const startGame = async () => {
+    // Create a new game session when starting
+    const newSessionId = `game_session_${Date.now()}`;
+    
+    try {
+      // Create backend session
+      const sessionResponse = await fetch('http://localhost:5000/api/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: playerId })
+      });
+      
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        const backendSessionId = sessionData.session_data.session_id;
+        console.log(`🔐 Backend session created: ${backendSessionId}`);
+        
+        setGameState(prevState => ({
+          ...prevState,
+          bird: {
+            x: GAME_CONFIG.CANVAS_WIDTH * 0.3,
+            y: GAME_CONFIG.CANVAS_HEIGHT / 2,
+            velocity: 0,
+            rotation: 0,
+          },
+          pipes: [],
+          score: 0,
+          gameStatus: 'playing',
+          currentSessionId: backendSessionId, // Use backend session ID
+        }));
+        setFrameCount(0);
+        setPipeId(0);
+        
+        console.log(`🎮 Game started with backend session: ${backendSessionId}`);
+      } else {
+        console.error('Failed to create backend session');
+        // Fallback to local session ID
+        setGameState(prevState => ({
+          ...prevState,
+          bird: {
+            x: GAME_CONFIG.CANVAS_WIDTH * 0.3,
+            y: GAME_CONFIG.CANVAS_HEIGHT / 2,
+            velocity: 0,
+            rotation: 0,
+          },
+          pipes: [],
+          score: 0,
+          gameStatus: 'playing',
+          currentSessionId: newSessionId,
+        }));
+        setFrameCount(0);
+        setPipeId(0);
+      }
+    } catch (error) {
+      console.error('Error creating backend session:', error);
+      // Fallback to local session ID
+      setGameState(prevState => ({
+        ...prevState,
+        bird: {
+          x: GAME_CONFIG.CANVAS_WIDTH * 0.3,
+          y: GAME_CONFIG.CANVAS_HEIGHT / 2,
+          velocity: 0,
+          rotation: 0,
+        },
+        pipes: [],
+        score: 0,
+        gameStatus: 'playing',
+        currentSessionId: newSessionId,
+      }));
+      setFrameCount(0);
+      setPipeId(0);
+    }
   };
 
   const restartGame = () => {
@@ -179,9 +248,11 @@ export const FlappyBirdGame: React.FC = () => {
   };
 
   const generateProof = () => {
+    // Pass the current game session ID to ZKProofScreen
     setGameState(prevState => ({
       ...prevState,
       gameStatus: 'proof',
+      currentSessionId: gameState.currentSessionId || null, // Pass current session ID
     }));
   };
 
@@ -192,18 +263,18 @@ export const FlappyBirdGame: React.FC = () => {
     }));
   };
 
-  // Manual score submission for existing scores
+  // Manual score submission for current game score
   const submitCurrentScore = async () => {
-    const currentHighScore = parseInt(localStorage.getItem('flappyHighScore') || '0');
-    if (currentHighScore > 0) {
+    // Submit the current game score, not the high score
+    if (gameState.score > 0) {
       const success = await ApiService.submitScore({
         player_id: playerId,
-        score: currentHighScore,
+        score: gameState.score,
         difficulty: 1
       });
       
       if (success) {
-        console.log(`🎯 Current high score ${currentHighScore} submitted to API!`);
+        console.log(`🎯 Current game score ${gameState.score} submitted to API!`);
         // Refresh leaderboard
         const data = await ApiService.getLeaderboard(1);
         if (data) {
@@ -212,6 +283,8 @@ export const FlappyBirdGame: React.FC = () => {
       } else {
         console.log('Failed to submit current score');
       }
+    } else {
+      console.log('No score to submit (score is 0)');
     }
   };
 
@@ -233,7 +306,11 @@ export const FlappyBirdGame: React.FC = () => {
   }, [gameState.gameStatus]);
 
   if (gameState.gameStatus === 'proof') {
-    return <ZKProofScreen score={gameState.score} onBack={backToMenu} />;
+    return <ZKProofScreen 
+      score={gameState.score} 
+      onBack={backToMenu} 
+      sessionId={gameState.currentSessionId} 
+    />;
   }
 
   return (

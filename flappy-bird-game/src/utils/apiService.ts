@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:5000';
 
 export interface ScoreSubmission {
   player_id: string;
@@ -25,12 +25,33 @@ export interface LeaderboardResponse {
 export class ApiService {
   static async submitScore(scoreData: ScoreSubmission): Promise<any> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/submit-score`, {
+      // Use our new hybrid score submission endpoint
+      const response = await fetch(`${API_BASE_URL}/api/submit-hybrid-score`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(scoreData),
+        body: JSON.stringify({
+          ...scoreData,
+          game_duration: 5000, // Default game duration
+          inputs: [
+            // Simulate some basic inputs for testing
+            { timestamp: 0, action: 0 },
+            { timestamp: 500, action: 0 },
+            { timestamp: 1000, action: 0 }
+          ],
+          milestones: [
+            // Simulate milestones for the score
+            {
+              timestamp: 1000,
+              event_type: "SCORE_MILESTONE",
+              score: 1,
+              bird_y: 300,
+              pipe_x: 800,
+              description: "Scored point #1"
+            }
+          ]
+        }),
       });
 
       if (response.ok) {

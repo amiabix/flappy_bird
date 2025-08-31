@@ -19,6 +19,7 @@ export interface GameState {
   score: number;
   gameStatus: 'menu' | 'playing' | 'gameOver' | 'proof';
   highScore: number;
+  currentSessionId?: string | null; // Current game session ID for ZisK proof generation
 }
 
 export interface ZKProof {

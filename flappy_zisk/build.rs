@@ -28,16 +28,45 @@ fn main() -> io::Result<()> {
         }
     };
 
-    println!("Building input.bin: score={}, game_id={}", game_score, game_id);
+    // Generate realistic input data based on the actual score
+    let duration = (game_score * 2000) + 1000; // 2 seconds per point + 1 second base
+    let input_count = game_score * 2; // 2 inputs per point (realistic for Flappy Bird)
+    
+    // Generate realistic input timestamps with human-like variation
+    let mut inputs = Vec::new();
+    let base_time = 1000u64; // Start at 1 second
+    
+    // Use a simple PRNG-like approach for realistic variation
+    let mut current_time = base_time;
+    for i in 0..input_count {
+        // Add realistic variation: 600-1000ms between inputs (human-like)
+        let base_gap = 800u64;
+        let variation = ((i as u64 * 0x517cc1b727220a95) % 400) as u64; // Pseudo-random variation
+        let gap = base_gap + variation;
+        
+        current_time += gap;
+        inputs.push((current_time, 1u8)); // All inputs are flaps
+    }
+
+    println!("Building input.bin: score={}, game_id={}, duration={}ms, inputs={}", 
+             game_score, game_id, duration, input_count);
 
     // Create build directory and write input file
     fs::create_dir_all("build")?;
     let mut file = File::create("build/input.bin")?;
     
-    // Write 16 bytes: score + game_id
-    file.write_all(&game_score.to_le_bytes())?;
-    file.write_all(&game_id.to_le_bytes())?;
+    // Write complete input format: [score(4)][duration(8)][game_id(8)][input_count(4)][inputs...]
+    file.write_all(&(game_score as u32).to_le_bytes())?; // score (4 bytes)
+    file.write_all(&duration.to_le_bytes())?; // duration (8 bytes)
+    file.write_all(&game_id.to_le_bytes())?; // game_id (8 bytes)
+    file.write_all(&(input_count as u32).to_le_bytes())?; // input_count (4 bytes)
     
-    println!("Created input.bin: 16 bytes");
+    // Write inputs: [timestamp(8)][action(1)] for each input
+    for (timestamp, action) in inputs {
+        file.write_all(&timestamp.to_le_bytes())?;
+        file.write_all(&action.to_le_bytes())?;
+    }
+    
+    println!("Created input.bin: {} bytes with {} inputs", file.metadata()?.len(), input_count);
     Ok(())
 }
